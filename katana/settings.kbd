@@ -46,6 +46,14 @@
 )
 
 ;; ============================================
+;; 3-1. deffakekeys - 가상 키 정의
+;; ============================================
+;; Alt+Tab 메뉴 상태 유지를 위한 가상 Alt 키
+(deffakekeys
+  alt lalt
+)
+
+;; ============================================
 ;; 4. defalias - 별칭 정의
 ;; ============================================
 (defalias
@@ -58,8 +66,15 @@
 
   ;; --------------------------------------------
   ;; Space: 탭 = 공백, 홀드 = nav 레이어
+  ;; Space를 떼면 Alt 가상 키도 해제 (Alt+Tab 메뉴 닫기)
+  ;; tap-hold-press: 다른 키가 눌리면 즉시 hold 액션 활성화
   ;; --------------------------------------------
-  spc (tap-hold $tap-timeout $spc-hold-timeout spc (layer-toggle nav))
+  spc (tap-hold-press $tap-timeout $spc-hold-timeout 
+        spc 
+        (multi 
+          (layer-toggle nav)
+          (on-release-fakekey alt release)
+        ))
 
   ;; --------------------------------------------
   ;; 마우스 이동 (가속도 기반)
@@ -78,9 +93,26 @@
   mw-d (mwheel-down 50 120)
 
   ;; --------------------------------------------
-  ;; Alt+Tab
+  ;; Alt+Tab 메뉴 열기 (Alt 누르고 Tab 전송)
+  ;; Alt는 Space를 떼기 전까지 유지됨
+  ;; multi로 Alt를 먼저 누르고, macro로 지연 후 Tab 전송
   ;; --------------------------------------------
-  atab (macro A-tab)
+  atab (multi 
+         (on-press-fakekey alt press)
+         (macro 20 tab)
+       )
+
+  ;; --------------------------------------------
+  ;; S/F 키: Alt+Tab 메뉴에서는 Left/Right, 평소에는 Ctrl+S/F
+  ;; --------------------------------------------
+  nav-s (switch
+    ((input virtual alt)) left break
+    () C-s break
+  )
+  nav-f (switch
+    ((input virtual alt)) rght break
+    () C-f break
+  )
 )
 
 ;; ============================================
@@ -140,16 +172,18 @@
 ;;
 ;; 단축키:
 ;;   Q=Esc
-;;   D=Alt+Tab
+;;   D=Alt+Tab (메뉴 열기, Space 떼면 선택)
 ;;   W=Ctrl+W, E=Ctrl+E, R=Ctrl+R, T=Ctrl+T
-;;   A=Ctrl+A, S=Ctrl+S, F=Ctrl+F
+;;   A=Ctrl+A
+;;   S=Alt+Tab 메뉴에서 Left, 평소 Ctrl+S
+;;   F=Alt+Tab 메뉴에서 Right, 평소 Ctrl+F
 ;;   Z=Ctrl+Z, X=Ctrl+X, C=Ctrl+C, V=Ctrl+V
 ;;   Enter=Ctrl+Enter
 ;;
 (deflayer nav
   _    _    _    _    _    _    _    _    _    _    _    _    _    _
   _    esc  C-w  C-e  C-r  C-t  pgup home up   end  del  _    _    _
-  _    C-a  C-s  @atab C-f _    pgdn left down rght _    _    C-ret
+  _    C-a  @nav-s @atab @nav-f _  pgdn left down rght _    _    C-ret
   _    C-z  C-x  C-c  C-v  _    _    _    _    _    _    _
   _    _    _              _              _    _    _
 )
