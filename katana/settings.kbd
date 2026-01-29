@@ -56,6 +56,7 @@
   tap-timeout 100      ;; 탭 재입력 타임아웃 (ms)
   hold-timeout 200     ;; 홀드 인식 타임아웃 (ms)
   spc-hold-timeout 200 ;; Space 홀드 타임아웃
+  hrm-timeout 200      ;; Home Row Mods 홀드 타임아웃
 )
 
 ;; ============================================
@@ -126,6 +127,22 @@
     ((input virtual alt)) rght break
     () C-f break
   )
+
+  ;; --------------------------------------------
+  ;; Home Row Mods - GACS 배치
+  ;; 탭 = 문자, 홀드 = 모디파이어
+  ;; --------------------------------------------
+  ;; 왼손: GUI, Alt, Ctrl, Shift
+  hrm-a (tap-hold $tap-timeout $hrm-timeout a lmet)
+  hrm-s (tap-hold $tap-timeout $hrm-timeout s lalt)
+  hrm-d (tap-hold $tap-timeout $hrm-timeout d lctl)
+  hrm-f (tap-hold $tap-timeout $hrm-timeout f lsft)
+
+  ;; 오른손: Shift, Ctrl, Alt, GUI (미러)
+  hrm-j (tap-hold $tap-timeout $hrm-timeout j rsft)
+  hrm-k (tap-hold $tap-timeout $hrm-timeout k rctl)
+  hrm-l (tap-hold $tap-timeout $hrm-timeout l lalt)
+  hrm-; (tap-hold $tap-timeout $hrm-timeout ; rmet)
 )
 
 ;; ============================================
@@ -134,7 +151,7 @@
 (deflayer base
   esc  1    2    3    4    5    6    7    8    9    0    -    =    bspc
   tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
-  @cap a    s    d    f    g    h    j    k    l    ;    '    ret
+  @cap @hrm-a @hrm-s @hrm-d @hrm-f g h @hrm-j @hrm-k @hrm-l @hrm-; '  ret
   lsft z    x    c    v    b    n    m    ,    .    /    rsft
   lctl lmet lalt           @spc           ralt rmet rctl
 )
