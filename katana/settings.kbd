@@ -1,0 +1,155 @@
+;; ============================================
+;; Kanata Configuration - AutoHotkey 기능 변환
+;; ============================================
+;; 원본: autohotkey/JHotKey.ahk
+;; 
+;; 기능:
+;; - CapsLock: 탭 = 한영전환, 홀드 = Mouse 레이어
+;; - Space: 탭 = 공백, 홀드 = Navigation 레이어
+;; ============================================
+
+;; ============================================
+;; 1. defcfg - 전역 설정
+;; ============================================
+(defcfg
+  ;; Windows 환경에서 동시 tap-hold 활성화
+  concurrent-tap-hold yes
+
+  ;; 빠른 이벤트 지연 (일부 환경에서 키 입력 누락 방지)
+  rapid-event-delay 5
+
+  ;; 레이어 변경 로그 비활성화 (성능 향상)
+  log-layer-changes no
+
+  ;; 매핑되지 않은 키도 처리 (투명 키 동작을 위해 필요)
+  process-unmapped-keys yes
+)
+
+;; ============================================
+;; 2. defsrc - 소스 키 정의
+;; ============================================
+(defsrc
+  esc  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps a    s    d    f    g    h    j    k    l    ;    '    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           spc            ralt rmet rctl
+)
+
+;; ============================================
+;; 3. defvar - 변수 정의
+;; ============================================
+(defvar
+  tap-timeout 100      ;; 탭 재입력 타임아웃 (ms)
+  hold-timeout 200     ;; 홀드 인식 타임아웃 (ms)
+  spc-hold-timeout 200 ;; Space 홀드 타임아웃
+)
+
+;; ============================================
+;; 4. defalias - 별칭 정의
+;; ============================================
+(defalias
+  ;; --------------------------------------------
+  ;; CapsLock: 탭 = 한영전환, 홀드 = mouse 레이어
+  ;; --------------------------------------------
+  ;; f13을 한영키로 사용 (Windows IME에서 f13을 한영전환으로 설정 필요)
+  ;; 또는 한글 입력기 설정에서 Hangul 키를 f13으로 매핑
+  cap (tap-hold $tap-timeout $hold-timeout f13 (layer-toggle mouse))
+
+  ;; --------------------------------------------
+  ;; Space: 탭 = 공백, 홀드 = nav 레이어
+  ;; --------------------------------------------
+  spc (tap-hold $tap-timeout $spc-hold-timeout spc (layer-toggle nav))
+
+  ;; --------------------------------------------
+  ;; 마우스 이동 (가속도 기반)
+  ;; (movemouse-accel-방향 간격ms 가속시간ms 최소속도 최대속도)
+  ;; AutoHotkey: minMoveSpeed=1, maxMoveSpeed=100, accelerationDuration=2000ms
+  ;; --------------------------------------------
+  ms-u (movemouse-accel-up    1 2000 1 100)
+  ms-d (movemouse-accel-down  1 2000 1 100)
+  ms-l (movemouse-accel-left  1 2000 1 100)
+  ms-r (movemouse-accel-right 1 2000 1 100)
+
+  ;; --------------------------------------------
+  ;; 마우스 휠 (간격ms, 스크롤량)
+  ;; --------------------------------------------
+  mw-u (mwheel-up   50 120)
+  mw-d (mwheel-down 50 120)
+
+  ;; --------------------------------------------
+  ;; Alt+Tab
+  ;; --------------------------------------------
+  atab (macro A-tab)
+)
+
+;; ============================================
+;; 5. deflayer base - 기본 레이어
+;; ============================================
+(deflayer base
+  esc  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  @cap a    s    d    f    g    h    j    k    l    ;    '    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           @spc           ralt rmet rctl
+)
+
+;; ============================================
+;; 6. deflayer mouse - CapsLock 홀드 시 활성화
+;; ============================================
+;; AutoHotkey CapsLock 레이어 매핑:
+;;
+;; 키보드 방향키 (WASD):
+;;   Q=Home, W=Up, E=End
+;;   A=Left, S=Down, D=Right
+;;
+;; 스크롤:
+;;   R=WheelUp, F=WheelDown
+;;   T=PageUp, G=PageDown
+;;
+;; 마우스 이동 (IJKL):
+;;   I=MouseUp, J=MouseLeft, K=MouseDown, L=MouseRight
+;;
+;; 마우스 클릭/휠:
+;;   U=LeftClick, O=RightClick
+;;   Y=WheelUp, H=WheelDown
+;;
+;; 특수:
+;;   Esc=Win+D (모든 창 최소화)
+;;
+(deflayer mouse
+  M-d  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    home up   end  @mw-u pgup @mw-u mlft @ms-u mrgt _    _    _    _
+  _    left down rght @mw-d pgdn @mw-d @ms-l @ms-d @ms-r _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _              _              _    _    _
+)
+
+;; ============================================
+;; 7. deflayer nav - Space 홀드 시 활성화
+;; ============================================
+;; AutoHotkey Space 레이어 매핑:
+;;
+;; 방향키 (IJKL):
+;;   I=Up, J=Left, K=Down, L=Right
+;;
+;; 네비게이션:
+;;   Y=PageUp, H=PageDown
+;;   U=Home, O=End
+;;   P=Delete
+;;
+;; 단축키:
+;;   Q=Esc
+;;   D=Alt+Tab
+;;   W=Ctrl+W, E=Ctrl+E, R=Ctrl+R, T=Ctrl+T
+;;   A=Ctrl+A, S=Ctrl+S, F=Ctrl+F
+;;   Z=Ctrl+Z, X=Ctrl+X, C=Ctrl+C, V=Ctrl+V
+;;   Enter=Ctrl+Enter
+;;
+(deflayer nav
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    esc  C-w  C-e  C-r  C-t  pgup home up   end  del  _    _    _
+  _    C-a  C-s  @atab C-f _    pgdn left down rght _    _    C-ret
+  _    C-z  C-x  C-c  C-v  _    _    _    _    _    _    _
+  _    _    _              _              _    _    _
+)
