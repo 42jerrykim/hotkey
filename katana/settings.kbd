@@ -23,6 +23,12 @@
 
   ;; 매핑되지 않은 키도 처리 (투명 키 동작을 위해 필요)
   process-unmapped-keys yes
+
+  ;; 마우스 가속도 상태 유지 (방향 전환 시에도 가속 상태 유지)
+  movemouse-inherit-accel-state yes
+
+  ;; 대각선 이동을 부드럽게 (동시 이동 처리)
+  movemouse-smooth-diagonals yes
 )
 
 ;; ============================================
@@ -78,12 +84,13 @@
   ;; --------------------------------------------
   ;; 마우스 이동 (가속도 기반)
   ;; (movemouse-accel-방향 간격ms 가속시간ms 최소속도 최대속도)
-  ;; AutoHotkey: minMoveSpeed=1, maxMoveSpeed=100, accelerationDuration=2000ms
+  ;; 간격: 20ms (초당 50회), 가속시간: 1000ms, 최소: 1픽셀, 최대: 20픽셀
+  ;; 초기속도: 50픽셀/초, 최대속도: 1000픽셀/초
   ;; --------------------------------------------
-  ms-u (movemouse-accel-up    1 2000 1 100)
-  ms-d (movemouse-accel-down  1 2000 1 100)
-  ms-l (movemouse-accel-left  1 2000 1 100)
-  ms-r (movemouse-accel-right 1 2000 1 100)
+  ms-u (movemouse-accel-up    20 1000 1 20)
+  ms-d (movemouse-accel-down  20 1000 1 20)
+  ms-l (movemouse-accel-left  20 1000 1 20)
+  ms-r (movemouse-accel-right 20 1000 1 20)
 
   ;; --------------------------------------------
   ;; 마우스 휠 (간격ms, 스크롤량)
