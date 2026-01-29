@@ -13,10 +13,10 @@
 ;; ============================================
 (defcfg
   ;; 기본 트레이 아이콘 (base 레이어용)
-  tray-icon "base.ico"
+  tray-icon "../icons/base.ico"
 
   ;; 레이어별 아이콘 자동 매칭 (레이어이름.ico 파일 사용)
-  ;; 필요한 파일: base.ico, mouse.ico, nav.ico
+  ;; 필요한 파일: base.ico, mouse.ico, nav.ico (icons 폴더에 위치)
   icon-match-layer-name yes
 
   ;; Windows 환경에서 동시 tap-hold 활성화
