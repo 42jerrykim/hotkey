@@ -12,6 +12,10 @@
 ;; 1. defcfg - 전역 설정
 ;; ============================================
 (defcfg
+  ;; 레이어별 아이콘 자동 매칭 (레이어이름.ico 파일 사용)
+  ;; 필요한 파일: base.ico, mouse.ico, nav.ico
+  icon-match-layer-name yes
+
   ;; Windows 환경에서 동시 tap-hold 활성화
   concurrent-tap-hold yes
 
