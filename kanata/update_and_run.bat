@@ -53,7 +53,7 @@ if not exist "%TEMP_SCRIPT%" (
 :: Check if downloaded script has the self-update marker (to avoid downgrade)
 findstr /C:"[0/4] Checking script update" "%TEMP_SCRIPT%" >nul 2>&1
 if errorlevel 1 (
-    echo   [INFO] Remote script is same version. Skipping update.
+    echo   [INFO] Remote script is older version. Skipping update.
     del "%TEMP_SCRIPT%" 2>nul
     goto :skip_self_update
 )
