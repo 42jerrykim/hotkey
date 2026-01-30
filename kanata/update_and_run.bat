@@ -262,7 +262,10 @@ echo ============================================
 :: Turn off CapsLock if it's on (prevents stuck uppercase)
 powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; if ([System.Windows.Forms.Control]::IsKeyLocked('CapsLock')) { $wsh = New-Object -ComObject WScript.Shell; $wsh.SendKeys('{CAPSLOCK}') }"
 
-:: Run Kanata (detached process using separate cmd)
-cmd /c start "" "%BINARY_PATH%" --cfg "%CONFIG_PATH%"
+:: Run Kanata (fully detached using temp VBS)
+echo Set ws = CreateObject("WScript.Shell") > "%TEMP%\run_kanata.vbs"
+echo ws.Run """%BINARY_PATH%"" --cfg ""%CONFIG_PATH%""", 0, False >> "%TEMP%\run_kanata.vbs"
+wscript //nologo "%TEMP%\run_kanata.vbs"
+del "%TEMP%\run_kanata.vbs" 2>nul
 
 exit /b 0
