@@ -13,3 +13,9 @@
 *.o
 *.a
 version.txt
+
+# Temp files for update script
+*.new
+kanata_update_*.bat
+run_kanata.vbs
+run_capslock_monitor.vbs
