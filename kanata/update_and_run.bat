@@ -269,7 +269,11 @@ echo ws.Run "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -
 wscript //nologo "bin\run_capslock_monitor.vbs"
 del "bin\run_capslock_monitor.vbs" 2>nul
 
+<<<<<<< HEAD
 :: Run Kanata (fully detached using VBS)
+=======
+:: Run Kanata (fully detached using temp VBS)
+>>>>>>> ba5eb70454f63dff5918376b5166cc3439345b51
 echo Set ws = CreateObject("WScript.Shell") > "bin\run_kanata.vbs"
 echo ws.Run """%BINARY_PATH%"" --cfg ""%CONFIG_PATH%""", 0, False >> "bin\run_kanata.vbs"
 wscript //nologo "bin\run_kanata.vbs"
