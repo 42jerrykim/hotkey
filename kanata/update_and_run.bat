@@ -4,6 +4,7 @@ setlocal enabledelayedexpansion
 :: ============================================
 :: Kanata Auto Update and Run Script
 :: ============================================
+:: - Self-update this script from GitHub
 :: - Download latest binary from jtroo/kanata
 :: - Download config/icons from 42jerrykim/hotkey
 :: - Check version and update only if new version
@@ -13,6 +14,7 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 :: Settings
+set "SCRIPT_NAME=update_and_run.bat"
 set "BINARY_NAME=kanata_windows_gui_winIOv2_x64.exe"
 set "BINARY_PATH=bin\%BINARY_NAME%"
 set "VERSION_FILE=bin\version.txt"
@@ -30,9 +32,65 @@ echo ============================================
 echo.
 
 :: ============================================
+:: 0. Self-update script
+:: ============================================
+:: Skip self-update if flag is set
+if "%~1"=="--skip-self-update" goto :skip_self_update
+
+echo [0/4] Checking script update...
+
+set "SCRIPT_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/%SCRIPT_NAME%"
+set "TEMP_SCRIPT=%TEMP%\%SCRIPT_NAME%.new"
+
+:: Download latest script to temp
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%SCRIPT_URL%' -OutFile '%TEMP_SCRIPT%' -TimeoutSec 30 } catch { exit 1 }"
+
+if not exist "%TEMP_SCRIPT%" (
+    echo   [WARNING] Cannot download script. Continuing with current version.
+    goto :skip_self_update
+)
+
+:: Check if downloaded script has the self-update marker (to avoid downgrade)
+findstr /C:"[0/4] Checking script update" "%TEMP_SCRIPT%" >nul 2>&1
+if errorlevel 1 (
+    echo   [INFO] Remote script is older version. Skipping update.
+    del "%TEMP_SCRIPT%" 2>nul
+    goto :skip_self_update
+)
+
+:: Compare files using hash
+for /f "delims=" %%i in ('powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; $h1=(Get-FileHash -LiteralPath '%~f0' -Algorithm MD5).Hash; $h2=(Get-FileHash -LiteralPath '%TEMP_SCRIPT%' -Algorithm MD5).Hash; if($h1 -eq $h2){'SAME'}else{'DIFFERENT'}"') do set "HASH_RESULT=%%i"
+
+if "%HASH_RESULT%"=="SAME" (
+    echo   [INFO] Script is up to date.
+    del "%TEMP_SCRIPT%" 2>nul
+    goto :skip_self_update
+)
+
+echo   [INFO] New script version found! Updating...
+
+:: Copy new script and restart
+copy /y "%TEMP_SCRIPT%" "%~f0" >nul 2>&1
+if errorlevel 1 (
+    echo   [ERROR] Failed to update script.
+    del "%TEMP_SCRIPT%" 2>nul
+    goto :skip_self_update
+)
+del "%TEMP_SCRIPT%" 2>nul
+
+echo   [SUCCESS] Script updated. Restarting...
+echo.
+
+:: Restart with skip flag to prevent infinite loop
+call "%~f0" --skip-self-update
+exit /b %errorlevel%
+
+:skip_self_update
+
+:: ============================================
 :: 1. Check and update binary version
 :: ============================================
-echo [1/3] Checking binary version...
+echo [1/4] Checking binary version...
 
 :: Read current version
 set "CURRENT_VERSION="
@@ -135,7 +193,7 @@ rmdir /s /q "%TEMP_DIR%" 2>nul
 :: ============================================
 :update_config
 echo.
-echo [2/3] Updating config and icons...
+echo [2/4] Updating config and icons...
 
 :: Check icons directory
 if not exist "icons" mkdir "icons"
@@ -164,7 +222,7 @@ echo   [DONE] Config update complete
 :: ============================================
 :run_kanata
 echo.
-echo [3/3] Starting Kanata...
+echo [3/4] Starting Kanata...
 
 :: Terminate all existing Kanata processes
 echo   Checking existing Kanata processes...
