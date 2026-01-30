@@ -41,10 +41,11 @@
 ;; ============================================
 ;; 2. defsrc - 소스 키 정의
 ;; ============================================
+;; 주의: disable_capslock.reg 적용 후 CapsLock이 F13으로 변환됨
 (defsrc
   esc  1    2    3    4    5    6    7    8    9    0    -    =    bspc
   tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
-  caps a    s    d    f    g    h    j    k    l    ;    '    ret
+  f13  a    s    d    f    g    h    j    k    l    ;    '    ret
   lsft z    x    c    v    b    n    m    ,    .    /    rsft
   lctl lmet lalt           spc            ralt rmet rctl
 )
@@ -72,13 +73,11 @@
 ;; ============================================
 (defalias
   ;; --------------------------------------------
-  ;; CapsLock: 탭 = 한영전환, 홀드 = mouse 레이어
+  ;; F13 (CapsLock): 탭 = 한영전환, 홀드 = mouse 레이어
   ;; --------------------------------------------
-  ;; 한영키 전송 후 CapsLock을 명시적으로 눌러 토글된 상태 복구
-  ;; mstsc 환경에서 CapsLock 상태 동기화 문제 해결
-  cap (tap-hold-press $tap-timeout $hold-timeout 
-        (macro (arbitrary-code 21) 50 caps) 
-        (layer-toggle mouse))
+  ;; Registry에서 CapsLock→F13 변환되어 CapsLock 상태 문제 없음
+  ;; 한영키 코드 0x15(21)를 직접 전송
+  cap (tap-hold-press $tap-timeout $hold-timeout (arbitrary-code 21) (layer-toggle mouse))
 
   ;; --------------------------------------------
   ;; Space: 탭 = 공백, 홀드 = nav 레이어

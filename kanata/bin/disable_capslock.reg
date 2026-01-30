@@ -1,0 +1,8 @@
+Windows Registry Editor Version 5.00
+
+; CapsLock 키를 F13으로 변환
+; CapsLock LED가 절대 켜지지 않음
+; 적용 후 재부팅 필요
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout]
+"Scancode Map"=hex:00,00,00,00,00,00,00,00,02,00,00,00,64,00,3a,00,00,00,00,00
