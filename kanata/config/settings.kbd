@@ -139,10 +139,10 @@
   hrm-f (tap-hold $tap-timeout $hrm-timeout f lsft)
 
   ;; 오른손: Shift, Ctrl, Alt, GUI (미러)
-  hrm-j (tap-hold $tap-timeout $hrm-timeout j rsft)
-  hrm-k (tap-hold $tap-timeout $hrm-timeout k rctl)
+  hrm-j (tap-hold $tap-timeout $hrm-timeout j lsft)
+  hrm-k (tap-hold $tap-timeout $hrm-timeout k lctl)
   hrm-l (tap-hold $tap-timeout $hrm-timeout l lalt)
-  hrm-; (tap-hold $tap-timeout $hrm-timeout ; rmet)
+  hrm-; (tap-hold $tap-timeout $hrm-timeout ; lmet)
 )
 
 ;; ============================================
