@@ -234,8 +234,6 @@ taskkill /F /IM "kanata_windows_tty_winIOv2_cmd_allowed_x64.exe" >nul 2>&1
 taskkill /F /IM "kanata_windows_tty_wintercept_x64.exe" >nul 2>&1
 taskkill /F /IM "kanata_windows_tty_wintercept_cmd_allowed_x64.exe" >nul 2>&1
 taskkill /F /IM "kanata.exe" >nul 2>&1
-:: Terminate CapsLock monitor
-powershell -NoProfile -Command "Get-Process -Name powershell -ErrorAction SilentlyContinue | Where-Object {$_.CommandLine -like '*IsKeyLocked*CapsLock*'} | Stop-Process -Force" 2>nul
 timeout /t 2 /nobreak >nul
 echo   Done
 
@@ -259,15 +257,6 @@ echo ============================================
 echo  Kanata is running in system tray.
 echo  Right-click tray icon to exit.
 echo ============================================
-
-:: Turn off CapsLock if it's on (prevents stuck uppercase)
-powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; if ([System.Windows.Forms.Control]::IsKeyLocked('CapsLock')) { $wsh = New-Object -ComObject WScript.Shell; $wsh.SendKeys('{CAPSLOCK}') }"
-
-:: Start CapsLock monitor in background (fully detached using VBS)
-echo Set ws = CreateObject("WScript.Shell") > "bin\run_capslock_monitor.vbs"
-echo ws.Run "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command ""Add-Type -AssemblyName System.Windows.Forms; $wsh = New-Object -ComObject WScript.Shell; while ($true) { if ([System.Windows.Forms.Control]::IsKeyLocked('CapsLock')) { $wsh.SendKeys('{CAPSLOCK}') }; Start-Sleep -Milliseconds 500 }""", 0, False >> "bin\run_capslock_monitor.vbs"
-wscript //nologo "bin\run_capslock_monitor.vbs"
-del "bin\run_capslock_monitor.vbs" 2>nul
 
 :: Run Kanata (fully detached using VBS)
 echo Set ws = CreateObject("WScript.Shell") > "bin\run_kanata.vbs"

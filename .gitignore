@@ -18,4 +18,3 @@ version.txt
 *.new
 kanata_update_*.bat
 run_kanata.vbs
-run_capslock_monitor.vbs
