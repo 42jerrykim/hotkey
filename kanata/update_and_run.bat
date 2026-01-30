@@ -27,7 +27,7 @@ set "CONFIG_REPO=42jerrykim/hotkey"
 set "CONFIG_BRANCH=main"
 
 echo ============================================
-echo  Kanata Update and Run Script v1.6
+echo  Kanata Update and Run Script v1.7
 echo ============================================
 echo.
 
