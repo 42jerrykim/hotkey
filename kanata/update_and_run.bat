@@ -27,7 +27,7 @@ set "CONFIG_REPO=42jerrykim/hotkey"
 set "CONFIG_BRANCH=main"
 
 echo ============================================
-echo  Kanata Update and Run Script v0.3
+echo  Kanata Update and Run Script v0.4
 echo ============================================
 echo.
 
@@ -40,7 +40,7 @@ if "%~1"=="--skip-self-update" goto :skip_self_update
 echo [0/4] Checking script update...
 
 set "SCRIPT_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/%SCRIPT_NAME%"
-set "TEMP_SCRIPT=%TEMP%\%SCRIPT_NAME%.new"
+set "TEMP_SCRIPT=bin\%SCRIPT_NAME%.new"
 
 :: Download latest script to temp
 powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%SCRIPT_URL%' -OutFile '%TEMP_SCRIPT%' -TimeoutSec 30 } catch { exit 1 }"
@@ -71,7 +71,7 @@ echo   [INFO] New script version found! Updating...
 
 :: Create a temporary batch file to perform the update safely
 :: This avoids modifying the currently running script
-set "UPDATE_BAT=%TEMP%\kanata_update_%RANDOM%.bat"
+set "UPDATE_BAT=bin\kanata_update_%RANDOM%.bat"
 echo @echo off > "%UPDATE_BAT%"
 echo timeout /t 1 /nobreak ^>nul >> "%UPDATE_BAT%"
 echo copy /y "%TEMP_SCRIPT%" "%~f0" ^>nul 2^>^&1 >> "%UPDATE_BAT%"
@@ -122,7 +122,7 @@ echo.
 echo   New version found! Downloading...
 
 :: Create temp directory
-set "TEMP_DIR=%TEMP%\kanata_update_%RANDOM%"
+set "TEMP_DIR=bin\kanata_update_%RANDOM%"
 mkdir "%TEMP_DIR%" 2>nul
 
 :: Download ZIP file
@@ -267,9 +267,9 @@ powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; if 
 start /b powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Add-Type -AssemblyName System.Windows.Forms; $wsh = New-Object -ComObject WScript.Shell; while ($true) { if ([System.Windows.Forms.Control]::IsKeyLocked('CapsLock')) { $wsh.SendKeys('{CAPSLOCK}') }; Start-Sleep -Milliseconds 500 }"
 
 :: Run Kanata (fully detached using temp VBS)
-echo Set ws = CreateObject("WScript.Shell") > "%TEMP%\run_kanata.vbs"
-echo ws.Run """%BINARY_PATH%"" --cfg ""%CONFIG_PATH%""", 0, False >> "%TEMP%\run_kanata.vbs"
-wscript //nologo "%TEMP%\run_kanata.vbs"
-del "%TEMP%\run_kanata.vbs" 2>nul
+echo Set ws = CreateObject("WScript.Shell") > "bin\run_kanata.vbs"
+echo ws.Run """%BINARY_PATH%"" --cfg ""%CONFIG_PATH%""", 0, False >> "bin\run_kanata.vbs"
+wscript //nologo "bin\run_kanata.vbs"
+del "bin\run_kanata.vbs" 2>nul
 
 exit /b 0
