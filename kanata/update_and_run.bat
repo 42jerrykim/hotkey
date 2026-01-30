@@ -27,7 +27,7 @@ set "CONFIG_REPO=42jerrykim/hotkey"
 set "CONFIG_BRANCH=main"
 
 echo ============================================
-echo  Kanata Update and Run Script v1.1
+echo  Kanata Update and Run Script v1.2
 echo ============================================
 echo.
 
@@ -50,10 +50,20 @@ echo   [WARNING] CapsLock registry is not configured or different.
 echo   Registry setting is required for Kanata to work properly.
 echo.
 
-:: Check if registry file exists
+:: Check bin directory
+if not exist "bin" mkdir "bin"
+
+:: Download registry file if not exists
+set "REG_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/bin/disable_capslock.reg"
 if not exist "%CAPSLOCK_REG_PATH%" (
-    echo   [ERROR] Registry file not found: %CAPSLOCK_REG_PATH%
-    echo   Please download the file from GitHub and try again.
+    echo   Downloading: disable_capslock.reg
+    powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%REG_URL%' -OutFile '%CAPSLOCK_REG_PATH%' -TimeoutSec 30 } catch { exit 1 }"
+)
+
+:: Check if registry file exists after download attempt
+if not exist "%CAPSLOCK_REG_PATH%" (
+    echo   [ERROR] Failed to download registry file.
+    echo   Please check network connection and try again.
     pause
     exit /b 1
 )
