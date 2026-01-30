@@ -69,21 +69,20 @@ if "%HASH_RESULT%"=="SAME" (
 
 echo   [INFO] New script version found! Updating...
 
-:: Copy new script and restart
-copy /y "%TEMP_SCRIPT%" "%~f0" >nul 2>&1
-if errorlevel 1 (
-    echo   [ERROR] Failed to update script.
-    del "%TEMP_SCRIPT%" 2>nul
-    goto :skip_self_update
-)
-del "%TEMP_SCRIPT%" 2>nul
+:: Create a temporary batch file to perform the update safely
+:: This avoids modifying the currently running script
+set "UPDATE_BAT=%TEMP%\kanata_update_%RANDOM%.bat"
+echo @echo off > "%UPDATE_BAT%"
+echo timeout /t 1 /nobreak ^>nul >> "%UPDATE_BAT%"
+echo copy /y "%TEMP_SCRIPT%" "%~f0" ^>nul 2^>^&1 >> "%UPDATE_BAT%"
+echo del "%TEMP_SCRIPT%" 2^>nul >> "%UPDATE_BAT%"
+echo call "%~f0" --skip-self-update >> "%UPDATE_BAT%"
+echo del "%%~f0" 2^>nul >> "%UPDATE_BAT%"
 
-echo   [SUCCESS] Script updated. Restarting...
-echo.
-
-:: Restart with skip flag to prevent infinite loop
-call "%~f0" --skip-self-update
-exit /b %errorlevel%
+:: Start the update process and exit current instance
+start "" /b cmd /c "%UPDATE_BAT%"
+echo   [SUCCESS] Update initiated. Exiting current instance...
+exit /b 0
 
 :skip_self_update
 
