@@ -16,7 +16,7 @@ cd /d "%~dp0"
 set "BINARY_NAME=kanata_windows_gui_winIOv2_x64.exe"
 set "BINARY_PATH=bin\%BINARY_NAME%"
 set "VERSION_FILE=bin\version.txt"
-set "CONFIG_PATH=config\settings.kbd"
+set "CONFIG_PATH=bin\kanata.kbd"
 set "ICONS_PATH=icons"
 
 :: GitHub repository settings
@@ -137,14 +137,13 @@ rmdir /s /q "%TEMP_DIR%" 2>nul
 echo.
 echo [2/3] Updating config and icons...
 
-:: Check config directory
-if not exist "config" mkdir "config"
+:: Check icons directory
 if not exist "icons" mkdir "icons"
 
 :: Download config file
-set "CONFIG_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/config/settings.kbd"
-echo   Downloading: settings.kbd
-powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%CONFIG_URL%' -OutFile '%CONFIG_PATH%' -TimeoutSec 30; Write-Host '   [SUCCESS] settings.kbd' } catch { Write-Host '   [WARNING] settings.kbd download failed' }"
+set "CONFIG_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/bin/kanata.kbd"
+echo   Downloading: kanata.kbd
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%CONFIG_URL%' -OutFile '%CONFIG_PATH%' -TimeoutSec 30; Write-Host '   [SUCCESS] kanata.kbd' } catch { Write-Host '   [WARNING] kanata.kbd download failed' }"
 
 :: Download icon files
 set "ICONS_BASE_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/icons"
