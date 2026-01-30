@@ -53,8 +53,7 @@ if not exist "%TEMP_SCRIPT%" (
 :: Check if downloaded script has the self-update marker (to avoid downgrade)
 findstr /C:"[0/4] Checking script update" "%TEMP_SCRIPT%" >nul 2>&1
 if errorlevel 1 (
-    echo   [INFO] Remote script is older version. Skipping update.
-    del "%TEMP_SCRIPT%" 2>nul
+    echo   [INFO] Remote script is older version. Skipping update.    del "%TEMP_SCRIPT%" 2>nul
     goto :skip_self_update
 )
 
@@ -224,7 +223,7 @@ echo   [DONE] Config update complete
 echo.
 echo [3/4] Starting Kanata...
 
-:: Terminate all existing Kanata processes
+:: Terminate all existing Kanata processes and CapsLock monitor
 echo   Checking existing Kanata processes...
 taskkill /F /IM "kanata_windows_gui_winIOv2_x64.exe" >nul 2>&1
 taskkill /F /IM "kanata_windows_gui_winIOv2_cmd_allowed_x64.exe" >nul 2>&1
@@ -235,6 +234,8 @@ taskkill /F /IM "kanata_windows_tty_winIOv2_cmd_allowed_x64.exe" >nul 2>&1
 taskkill /F /IM "kanata_windows_tty_wintercept_x64.exe" >nul 2>&1
 taskkill /F /IM "kanata_windows_tty_wintercept_cmd_allowed_x64.exe" >nul 2>&1
 taskkill /F /IM "kanata.exe" >nul 2>&1
+:: Terminate CapsLock monitor
+powershell -NoProfile -Command "Get-Process -Name powershell -ErrorAction SilentlyContinue | Where-Object {$_.CommandLine -like '*IsKeyLocked*CapsLock*'} | Stop-Process -Force" 2>nul
 timeout /t 2 /nobreak >nul
 echo   Done
 
@@ -261,6 +262,9 @@ echo ============================================
 
 :: Turn off CapsLock if it's on (prevents stuck uppercase)
 powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; if ([System.Windows.Forms.Control]::IsKeyLocked('CapsLock')) { $wsh = New-Object -ComObject WScript.Shell; $wsh.SendKeys('{CAPSLOCK}') }"
+
+:: Start CapsLock monitor in background (prevents CapsLock stuck issue with mstsc)
+start /b powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Add-Type -AssemblyName System.Windows.Forms; $wsh = New-Object -ComObject WScript.Shell; while ($true) { if ([System.Windows.Forms.Control]::IsKeyLocked('CapsLock')) { $wsh.SendKeys('{CAPSLOCK}') }; Start-Sleep -Milliseconds 500 }"
 
 :: Run Kanata (fully detached using temp VBS)
 echo Set ws = CreateObject("WScript.Shell") > "%TEMP%\run_kanata.vbs"
