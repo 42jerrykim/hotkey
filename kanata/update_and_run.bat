@@ -27,17 +27,83 @@ set "CONFIG_REPO=42jerrykim/hotkey"
 set "CONFIG_BRANCH=main"
 
 echo ============================================
-echo  Kanata Update and Run Script v0.9
+echo  Kanata Update and Run Script v1.0
 echo ============================================
 echo.
 
 :: ============================================
-:: 0. Self-update script
+:: 0. Check CapsLock registry setting
+:: ============================================
+echo [0/5] Checking CapsLock registry...
+
+set "CAPSLOCK_REG_PATH=bin\disable_capslock.reg"
+
+:: Check if registry value is correctly set using PowerShell
+for /f "delims=" %%i in ('powershell -NoProfile -Command "$expected = @(0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x00,0x00,0x00,0x64,0x00,0x3a,0x00,0x00,0x00,0x00,0x00); $actual = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout' -Name 'Scancode Map' -ErrorAction SilentlyContinue).'Scancode Map'; if ($null -eq $actual) { 'NOT_SET' } elseif ($null -ne (Compare-Object $expected $actual)) { 'DIFFERENT' } else { 'OK' }"') do set "CAPSLOCK_STATUS=%%i"
+
+if "%CAPSLOCK_STATUS%"=="OK" (
+    echo   [INFO] CapsLock registry is already configured.
+    goto :capslock_done
+)
+
+echo   [WARNING] CapsLock registry is not configured or different.
+echo   Registry setting is required for Kanata to work properly.
+echo.
+
+:: Check if registry file exists
+if not exist "%CAPSLOCK_REG_PATH%" (
+    echo   [ERROR] Registry file not found: %CAPSLOCK_REG_PATH%
+    echo   Please download the file from GitHub and try again.
+    pause
+    exit /b 1
+)
+
+:: Check for administrator privileges
+net session >nul 2>&1
+if errorlevel 1 (
+    echo   [INFO] Administrator privileges required to modify registry.
+    echo   Requesting elevation...
+    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs -ArgumentList '--skip-self-update'"
+    exit /b 0
+)
+
+:: Apply registry setting
+echo   Applying CapsLock registry setting...
+reg import "%CAPSLOCK_REG_PATH%" >nul 2>&1
+if errorlevel 1 (
+    echo   [ERROR] Failed to apply registry setting.
+    pause
+    exit /b 1
+)
+echo   [SUCCESS] Registry setting applied.
+echo.
+
+:: Ask for reboot
+echo   ============================================
+echo   REBOOT REQUIRED
+echo   ============================================
+echo   The registry change requires a system reboot
+echo   to take effect.
+echo.
+set /p "REBOOT_CHOICE=   Reboot now? (Y/N): "
+if /i "%REBOOT_CHOICE%"=="Y" (
+    echo.
+    echo   Rebooting in 5 seconds...
+    shutdown /r /t 5
+    exit /b 0
+)
+echo   [INFO] Please reboot manually later for changes to take effect.
+echo.
+
+:capslock_done
+
+:: ============================================
+:: 1. Self-update script
 :: ============================================
 :: Skip self-update if flag is set
 if "%~1"=="--skip-self-update" goto :skip_self_update
 
-echo [0/4] Checking script update...
+echo [1/5] Checking script update...
 
 set "SCRIPT_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/%SCRIPT_NAME%"
 set "TEMP_SCRIPT=bin\%SCRIPT_NAME%.new"
@@ -51,7 +117,7 @@ if not exist "%TEMP_SCRIPT%" (
 )
 
 :: Check if downloaded script has the self-update marker (to avoid downgrade)
-findstr /C:"[0/4] Checking script update" "%TEMP_SCRIPT%" >nul 2>&1
+findstr /C:"[1/5] Checking script update" "%TEMP_SCRIPT%" >nul 2>&1
 if errorlevel 1 (
     echo   [INFO] Remote script is older version. Skipping update.    
     del "%TEMP_SCRIPT%" 2>nul
@@ -87,9 +153,9 @@ exit /b 0
 :skip_self_update
 
 :: ============================================
-:: 1. Check and update binary version
+:: 2. Check and update binary version
 :: ============================================
-echo [1/4] Checking binary version...
+echo [2/5] Checking binary version...
 
 :: Read current version
 set "CURRENT_VERSION="
@@ -188,11 +254,11 @@ if defined EXTRACTED_BINARY (
 rmdir /s /q "%TEMP_DIR%" 2>nul
 
 :: ============================================
-:: 2. Update config and icons
+:: 3. Update config and icons
 :: ============================================
 :update_config
 echo.
-echo [2/4] Updating config and icons...
+echo [3/5] Updating config and icons...
 
 :: Check icons directory
 if not exist "icons" mkdir "icons"
@@ -217,11 +283,11 @@ powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { In
 echo   [DONE] Config update complete
 
 :: ============================================
-:: 3. Run Kanata
+:: 4. Run Kanata
 :: ============================================
 :run_kanata
 echo.
-echo [3/4] Starting Kanata...
+echo [4/5] Starting Kanata...
 
 :: Terminate all existing Kanata processes and CapsLock monitor
 echo   Checking existing Kanata processes...
