@@ -27,7 +27,7 @@ set "CONFIG_REPO=42jerrykim/hotkey"
 set "CONFIG_BRANCH=main"
 
 echo ============================================
-echo  Kanata Update and Run Script v0.6
+echo  Kanata Update and Run Script v0.7
 echo ============================================
 echo.
 
@@ -263,10 +263,13 @@ echo ============================================
 :: Turn off CapsLock if it's on (prevents stuck uppercase)
 powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; if ([System.Windows.Forms.Control]::IsKeyLocked('CapsLock')) { $wsh = New-Object -ComObject WScript.Shell; $wsh.SendKeys('{CAPSLOCK}') }"
 
-:: Start CapsLock monitor in background (prevents CapsLock stuck issue with mstsc)
-start /b powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Add-Type -AssemblyName System.Windows.Forms; $wsh = New-Object -ComObject WScript.Shell; while ($true) { if ([System.Windows.Forms.Control]::IsKeyLocked('CapsLock')) { $wsh.SendKeys('{CAPSLOCK}') }; Start-Sleep -Milliseconds 500 }"
+:: Start CapsLock monitor in background (fully detached using VBS)
+echo Set ws = CreateObject("WScript.Shell") > "bin\run_capslock_monitor.vbs"
+echo ws.Run "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command ""Add-Type -AssemblyName System.Windows.Forms; $wsh = New-Object -ComObject WScript.Shell; while ($true) { if ([System.Windows.Forms.Control]::IsKeyLocked('CapsLock')) { $wsh.SendKeys('{CAPSLOCK}') }; Start-Sleep -Milliseconds 500 }""", 0, False >> "bin\run_capslock_monitor.vbs"
+wscript //nologo "bin\run_capslock_monitor.vbs"
+del "bin\run_capslock_monitor.vbs" 2>nul
 
-:: Run Kanata (fully detached using temp VBS)
+:: Run Kanata (fully detached using VBS)
 echo Set ws = CreateObject("WScript.Shell") > "bin\run_kanata.vbs"
 echo ws.Run """%BINARY_PATH%"" --cfg ""%CONFIG_PATH%""", 0, False >> "bin\run_kanata.vbs"
 wscript //nologo "bin\run_kanata.vbs"
