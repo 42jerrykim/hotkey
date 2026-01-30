@@ -45,8 +45,8 @@ set "TEMP_SCRIPT=bin\%SCRIPT_NAME%.new"
 :: Check bin directory for temp script
 if not exist "bin" mkdir "bin"
 
-:: Download latest script to temp
-powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%SCRIPT_URL%' -OutFile '%TEMP_SCRIPT%' -TimeoutSec 30 } catch { exit 1 }"
+:: Download latest script to temp (with cache bypass)
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%SCRIPT_URL%' -OutFile '%TEMP_SCRIPT%' -TimeoutSec 30 -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'} } catch { exit 1 }"
 
 if not exist "%TEMP_SCRIPT%" (
     echo   [WARNING] Cannot download script. Continuing with current version.
@@ -115,7 +115,7 @@ if not exist "bin" mkdir "bin"
 set "REG_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/bin/disable_capslock.reg"
 if not exist "%CAPSLOCK_REG_PATH%" (
     echo   Downloading: disable_capslock.reg
-    powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%REG_URL%' -OutFile '%CAPSLOCK_REG_PATH%' -TimeoutSec 30 } catch { exit 1 }"
+    powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%REG_URL%' -OutFile '%CAPSLOCK_REG_PATH%' -TimeoutSec 30 -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'} } catch { exit 1 }"
 )
 
 :: Check if registry file exists after download attempt
@@ -279,19 +279,19 @@ if not exist "icons" mkdir "icons"
 :: Download config file
 set "CONFIG_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/bin/kanata.kbd"
 echo   Downloading: kanata.kbd
-powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%CONFIG_URL%' -OutFile '%CONFIG_PATH%' -TimeoutSec 30; Write-Host '   [SUCCESS] kanata.kbd' } catch { Write-Host '   [WARNING] kanata.kbd download failed' }"
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%CONFIG_URL%' -OutFile '%CONFIG_PATH%' -TimeoutSec 30 -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'}; Write-Host '   [SUCCESS] kanata.kbd' } catch { Write-Host '   [WARNING] kanata.kbd download failed' }"
 
 :: Download icon files
 set "ICONS_BASE_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/icons"
 
 echo   Downloading: base.ico
-powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%ICONS_BASE_URL%/base.ico' -OutFile '%ICONS_PATH%\base.ico' -TimeoutSec 30 } catch { }"
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%ICONS_BASE_URL%/base.ico' -OutFile '%ICONS_PATH%\base.ico' -TimeoutSec 30 -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'} } catch { }"
 
 echo   Downloading: mouse.ico
-powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%ICONS_BASE_URL%/mouse.ico' -OutFile '%ICONS_PATH%\mouse.ico' -TimeoutSec 30 } catch { }"
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%ICONS_BASE_URL%/mouse.ico' -OutFile '%ICONS_PATH%\mouse.ico' -TimeoutSec 30 -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'} } catch { }"
 
 echo   Downloading: nav.ico
-powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%ICONS_BASE_URL%/nav.ico' -OutFile '%ICONS_PATH%\nav.ico' -TimeoutSec 30 } catch { }"
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%ICONS_BASE_URL%/nav.ico' -OutFile '%ICONS_PATH%\nav.ico' -TimeoutSec 30 -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'} } catch { }"
 
 echo   [DONE] Config update complete
 
