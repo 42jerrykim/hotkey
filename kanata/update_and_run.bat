@@ -27,14 +27,72 @@ set "CONFIG_REPO=42jerrykim/hotkey"
 set "CONFIG_BRANCH=main"
 
 echo ============================================
-echo  Kanata Update and Run Script v1.2
+echo  Kanata Update and Run Script v1.3
 echo ============================================
 echo.
 
 :: ============================================
-:: 0. Check CapsLock registry setting
+:: 0. Self-update script
 :: ============================================
-echo [0/5] Checking CapsLock registry...
+:: Skip self-update if flag is set
+if "%~1"=="--skip-self-update" goto :skip_self_update
+
+echo [0/5] Checking script update...
+
+set "SCRIPT_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/%SCRIPT_NAME%"
+set "TEMP_SCRIPT=bin\%SCRIPT_NAME%.new"
+
+:: Check bin directory for temp script
+if not exist "bin" mkdir "bin"
+
+:: Download latest script to temp
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%SCRIPT_URL%' -OutFile '%TEMP_SCRIPT%' -TimeoutSec 30 } catch { exit 1 }"
+
+if not exist "%TEMP_SCRIPT%" (
+    echo   [WARNING] Cannot download script. Continuing with current version.
+    goto :skip_self_update
+)
+
+:: Check if downloaded script has the self-update marker (to avoid downgrade)
+findstr /C:"[0/5] Checking script update" "%TEMP_SCRIPT%" >nul 2>&1
+if errorlevel 1 (
+    echo   [INFO] Remote script is older version. Skipping update.    
+    del "%TEMP_SCRIPT%" 2>nul
+    goto :skip_self_update
+)
+
+:: Compare files using hash
+for /f "delims=" %%i in ('powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; $h1=(Get-FileHash -LiteralPath '%~f0' -Algorithm MD5).Hash; $h2=(Get-FileHash -LiteralPath '%TEMP_SCRIPT%' -Algorithm MD5).Hash; if($h1 -eq $h2){'SAME'}else{'DIFFERENT'}"') do set "HASH_RESULT=%%i"
+
+if "%HASH_RESULT%"=="SAME" (
+    echo   [INFO] Script is up to date.
+    del "%TEMP_SCRIPT%" 2>nul
+    goto :skip_self_update
+)
+
+echo   [INFO] New script version found! Updating...
+
+:: Create a temporary batch file to perform the update safely
+:: This avoids modifying the currently running script
+set "UPDATE_BAT=bin\kanata_update_%RANDOM%.bat"
+echo @echo off > "%UPDATE_BAT%"
+echo timeout /t 1 /nobreak ^>nul >> "%UPDATE_BAT%"
+echo copy /y "%TEMP_SCRIPT%" "%~f0" ^>nul 2^>^&1 >> "%UPDATE_BAT%"
+echo del "%TEMP_SCRIPT%" 2^>nul >> "%UPDATE_BAT%"
+echo call "%~f0" --skip-self-update >> "%UPDATE_BAT%"
+echo del "%%~f0" 2^>nul >> "%UPDATE_BAT%"
+
+:: Start the update process and exit current instance
+start "" /b cmd /c "%UPDATE_BAT%"
+echo   [SUCCESS] Update initiated. Exiting current instance...
+exit /b 0
+
+:skip_self_update
+
+:: ============================================
+:: 1. Check CapsLock registry setting
+:: ============================================
+echo [1/5] Checking CapsLock registry...
 
 set "CAPSLOCK_REG_PATH=bin\disable_capslock.reg"
 
@@ -106,61 +164,6 @@ echo   [INFO] Please reboot manually later for changes to take effect.
 echo.
 
 :capslock_done
-
-:: ============================================
-:: 1. Self-update script
-:: ============================================
-:: Skip self-update if flag is set
-if "%~1"=="--skip-self-update" goto :skip_self_update
-
-echo [1/5] Checking script update...
-
-set "SCRIPT_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/%SCRIPT_NAME%"
-set "TEMP_SCRIPT=bin\%SCRIPT_NAME%.new"
-
-:: Download latest script to temp
-powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%SCRIPT_URL%' -OutFile '%TEMP_SCRIPT%' -TimeoutSec 30 } catch { exit 1 }"
-
-if not exist "%TEMP_SCRIPT%" (
-    echo   [WARNING] Cannot download script. Continuing with current version.
-    goto :skip_self_update
-)
-
-:: Check if downloaded script has the self-update marker (to avoid downgrade)
-findstr /C:"[1/5] Checking script update" "%TEMP_SCRIPT%" >nul 2>&1
-if errorlevel 1 (
-    echo   [INFO] Remote script is older version. Skipping update.    
-    del "%TEMP_SCRIPT%" 2>nul
-    goto :skip_self_update
-)
-
-:: Compare files using hash
-for /f "delims=" %%i in ('powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; $h1=(Get-FileHash -LiteralPath '%~f0' -Algorithm MD5).Hash; $h2=(Get-FileHash -LiteralPath '%TEMP_SCRIPT%' -Algorithm MD5).Hash; if($h1 -eq $h2){'SAME'}else{'DIFFERENT'}"') do set "HASH_RESULT=%%i"
-
-if "%HASH_RESULT%"=="SAME" (
-    echo   [INFO] Script is up to date.
-    del "%TEMP_SCRIPT%" 2>nul
-    goto :skip_self_update
-)
-
-echo   [INFO] New script version found! Updating...
-
-:: Create a temporary batch file to perform the update safely
-:: This avoids modifying the currently running script
-set "UPDATE_BAT=bin\kanata_update_%RANDOM%.bat"
-echo @echo off > "%UPDATE_BAT%"
-echo timeout /t 1 /nobreak ^>nul >> "%UPDATE_BAT%"
-echo copy /y "%TEMP_SCRIPT%" "%~f0" ^>nul 2^>^&1 >> "%UPDATE_BAT%"
-echo del "%TEMP_SCRIPT%" 2^>nul >> "%UPDATE_BAT%"
-echo call "%~f0" --skip-self-update >> "%UPDATE_BAT%"
-echo del "%%~f0" 2^>nul >> "%UPDATE_BAT%"
-
-:: Start the update process and exit current instance
-start "" /b cmd /c "%UPDATE_BAT%"
-echo   [SUCCESS] Update initiated. Exiting current instance...
-exit /b 0
-
-:skip_self_update
 
 :: ============================================
 :: 2. Check and update binary version
