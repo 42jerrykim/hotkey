@@ -14,6 +14,7 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 :: Settings
+set "SCRIPT_VERSION=1.9"
 set "SCRIPT_NAME=update_and_run.bat"
 set "BINARY_NAME=kanata_windows_gui_winIOv2_x64.exe"
 set "BINARY_PATH=bin\%BINARY_NAME%"
@@ -27,7 +28,7 @@ set "CONFIG_REPO=42jerrykim/hotkey"
 set "CONFIG_BRANCH=main"
 
 echo ============================================
-echo  Kanata Update and Run Script v1.7
+echo  Kanata Update and Run Script v%SCRIPT_VERSION%
 echo ============================================
 echo.
 
@@ -66,6 +67,16 @@ for /f "delims=" %%i in ('powershell -NoProfile -Command "$ProgressPreference='S
 
 if "%HASH_RESULT%"=="SAME" (
     echo   [INFO] Script is up to date.
+    del "%TEMP_SCRIPT%" 2>nul
+    goto :skip_self_update
+)
+
+:: If script contents differ, only update when remote version is newer
+set "SELFUPDATE_DECISION="
+for /f "delims=" %%i in ('powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; function Get-Ver([string]$p){ $t=((Get-Content -LiteralPath $p -TotalCount 80 -ErrorAction SilentlyContinue) -join [Environment]::NewLine); $m=[regex]::Match($t,'SCRIPT_VERSION=([0-9.]+)'); if($m.Success){ return $m.Groups[1].Value }; $m=[regex]::Match($t,'Kanata Update and Run Script v([0-9.]+)'); if($m.Success){ return $m.Groups[1].Value }; return '0.0' }; $lv=Get-Ver '%~f0'; $rv=Get-Ver '%TEMP_SCRIPT%'; if([version]$rv -gt [version]$lv){ 'UPDATE' } else { 'SKIP' }"') do set "SELFUPDATE_DECISION=%%i"
+
+if "%SELFUPDATE_DECISION%"=="SKIP" (
+    echo   [INFO] Local script is newer or equal. Skipping self-update.
     del "%TEMP_SCRIPT%" 2>nul
     goto :skip_self_update
 )
@@ -181,10 +192,30 @@ if exist "%VERSION_FILE%" (
 
 :: Check latest version via GitHub API
 echo   Checking latest version...
-for /f "delims=" %%i in ('powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { $r = Invoke-RestMethod -Uri 'https://api.github.com/repos/%KANATA_REPO%/releases/latest' -TimeoutSec 10; $r.tag_name } catch { Write-Host 'ERROR' }"') do set "LATEST_VERSION=%%i"
+set "LATEST_VERSION="
+set "DOWNLOAD_URL="
+set "ZIP_NAME="
+set "VERSION_TMP=bin\version_check_%RANDOM%.tmp"
+
+:: Run PowerShell standalone and redirect output to temp file (avoids cmd.exe parenthesis parsing issue)
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; try{ $d=[char]124; $headers=@{'User-Agent'='kanata-update-script';'Accept'='application/vnd.github+json'}; $r=Invoke-RestMethod -Uri 'https://api.github.com/repos/%KANATA_REPO%/releases/latest' -Headers $headers -TimeoutSec 15 -ErrorAction Stop; $tag=$r.tag_name; $arch=if($env:PROCESSOR_ARCHITECTURE -eq 'ARM64'){'arm64'}else{'x64'}; $preferred='windows-binaries-'+$arch+'.zip'; $asset=$null; foreach($a in $r.assets){if($a.name -eq $preferred){$asset=$a;break}}; if(-not $asset){foreach($a in $r.assets){if($a.name -like 'windows-binaries-*.zip'){$asset=$a;break}}}; if(-not $asset){$tag+$d+$d}else{$tag+$d+$asset.browser_download_url+$d+$asset.name}}catch{$d=[char]124;'ERROR'+$d+$d}" > "%VERSION_TMP%" 2>nul
+
+:: Read result from temp file (for /f with usebackq reads a FILE, not a command -- no parsing issues)
+for /f "usebackq tokens=1-3 delims=|" %%a in ("%VERSION_TMP%") do (
+    set "LATEST_VERSION=%%a"
+    set "DOWNLOAD_URL=%%b"
+    set "ZIP_NAME=%%c"
+)
+del "%VERSION_TMP%" 2>nul
 
 if "%LATEST_VERSION%"=="ERROR" (
     echo   [WARNING] Cannot check latest version. Please check network connection.
+    goto :update_config
+)
+
+if "%DOWNLOAD_URL%"=="" (
+    echo   [WARNING] Latest release found: %LATEST_VERSION%, but cannot locate Windows binaries asset.
+    echo   [WARNING] Please download manually from: https://github.com/%KANATA_REPO%/releases/latest
     goto :update_config
 )
 
@@ -198,22 +229,20 @@ if "%CURRENT_VERSION%"=="%LATEST_VERSION%" (
 
 :: Download new version
 echo.
-echo   New version found! Downloading...
+echo   New version found^! Downloading...
 
 :: Create temp directory
 set "TEMP_DIR=bin\kanata_update_%RANDOM%"
 mkdir "%TEMP_DIR%" 2>nul
 
 :: Download ZIP file
-set "ZIP_NAME=kanata-windows-binaries-x64-%LATEST_VERSION%.zip"
-set "DOWNLOAD_URL=https://github.com/%KANATA_REPO%/releases/download/%LATEST_VERSION%/%ZIP_NAME%"
 set "ZIP_PATH=%TEMP_DIR%\%ZIP_NAME%"
 
 echo   Downloading: %ZIP_NAME%
-powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%ZIP_PATH%' -TimeoutSec 120"
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%ZIP_PATH%' -TimeoutSec 120 -UseBasicParsing } catch { exit 1 }"
 
 if not exist "%ZIP_PATH%" (
-    echo   [ERROR] Download failed!
+    echo   [ERROR] Download failed^^!
     rmdir /s /q "%TEMP_DIR%" 2>nul
     goto :update_config
 )
