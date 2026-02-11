@@ -1,17 +1,10 @@
 *.exe
 *.dll
-*.lib
-*.obj
 *.o
 *.a
 *.lib
 *.obj
-*.o
-*.a
-*.lib
-*.obj
-*.o
-*.a
+*.bak
 version.txt
 
 # Temp files for update script
