@@ -131,20 +131,20 @@
   )
 
   ;; --------------------------------------------
-  ;; Home Row Mods - GACS 배치
+  ;; Home Row Mods - AWSC 배치
   ;; 탭 = 문자, 홀드 = 모디파이어
   ;; --------------------------------------------
-  ;; 왼손: GUI, Alt, Ctrl, Shift
-  hrm-a (tap-hold $tap-timeout $hrm-timeout a lmet)
-  hrm-s (tap-hold $tap-timeout $hrm-timeout s lalt)
-  hrm-d (tap-hold $tap-timeout $hrm-timeout d lctl)
-  hrm-f (tap-hold $tap-timeout $hrm-timeout f lsft)
+  ;; 왼손: Alt, GUI(Win), Shift, Ctrl
+  hrm-a (tap-hold $tap-timeout $hrm-timeout a lalt)
+  hrm-s (tap-hold $tap-timeout $hrm-timeout s lmet)
+  hrm-d (tap-hold $tap-timeout $hrm-timeout d lsft)
+  hrm-f (tap-hold $tap-timeout $hrm-timeout f lctl)
 
-  ;; 오른손: Shift, Ctrl, Alt, GUI (미러)
-  hrm-j (tap-hold $tap-timeout $hrm-timeout j lsft)
-  hrm-k (tap-hold $tap-timeout $hrm-timeout k lctl)
-  hrm-l (tap-hold $tap-timeout $hrm-timeout l lalt)
-  hrm-; (tap-hold $tap-timeout $hrm-timeout ; lmet)
+  ;; 오른손: Ctrl, Shift, GUI(Win), Alt (미러)
+  hrm-j (tap-hold $tap-timeout $hrm-timeout j lctl)
+  hrm-k (tap-hold $tap-timeout $hrm-timeout k lsft)
+  hrm-l (tap-hold $tap-timeout $hrm-timeout l lmet)
+  hrm-; (tap-hold $tap-timeout $hrm-timeout ; lalt)
 )
 
 ;; ============================================
