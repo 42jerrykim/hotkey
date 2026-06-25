@@ -14,7 +14,7 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 :: Settings
-set "SCRIPT_VERSION=1.9"
+set "SCRIPT_VERSION=2.0"
 set "SCRIPT_NAME=update_and_run.bat"
 set "BINARY_NAME=kanata_windows_gui_winIOv2_x64.exe"
 set "BINARY_PATH=bin\%BINARY_NAME%"
@@ -30,6 +30,9 @@ set "CONFIG_BRANCH=main"
 echo ============================================
 echo  Kanata Update and Run Script v%SCRIPT_VERSION%
 echo ============================================
+echo.
+echo   CapsLock is handled directly by kanata (winIOv2).
+echo   No registry remapping required.
 echo.
 
 :: ============================================
@@ -101,85 +104,9 @@ exit /b 0
 :skip_self_update
 
 :: ============================================
-:: 1. Check CapsLock registry setting
+:: 1. Check and update binary version
 :: ============================================
-echo [1/5] Checking CapsLock registry...
-
-set "CAPSLOCK_REG_PATH=bin\disable_capslock.reg"
-
-:: Check if registry value is correctly set using PowerShell
-for /f "delims=" %%i in ('powershell -NoProfile -Command "$expected = @(0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x00,0x00,0x00,0x64,0x00,0x3a,0x00,0x00,0x00,0x00,0x00); $actual = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout' -Name 'Scancode Map' -ErrorAction SilentlyContinue).'Scancode Map'; if ($null -eq $actual) { 'NOT_SET' } elseif ($null -ne (Compare-Object $expected $actual)) { 'DIFFERENT' } else { 'OK' }"') do set "CAPSLOCK_STATUS=%%i"
-
-if "%CAPSLOCK_STATUS%"=="OK" (
-    echo   [INFO] CapsLock registry is already configured.
-    goto :capslock_done
-)
-
-echo   [WARNING] CapsLock registry is not configured or different.
-echo   Registry setting is required for Kanata to work properly.
-echo.
-
-:: Check bin directory
-if not exist "bin" mkdir "bin"
-
-:: Download registry file if not exists
-set "REG_URL=https://raw.githubusercontent.com/%CONFIG_REPO%/%CONFIG_BRANCH%/kanata/bin/disable_capslock.reg"
-if not exist "%CAPSLOCK_REG_PATH%" (
-    echo   Downloading: disable_capslock.reg
-    powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -Uri '%REG_URL%' -OutFile '%CAPSLOCK_REG_PATH%' -TimeoutSec 30 -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'} } catch { exit 1 }"
-)
-
-:: Check if registry file exists after download attempt
-if not exist "%CAPSLOCK_REG_PATH%" (
-    echo   [ERROR] Failed to download registry file.
-    echo   Please check network connection and try again.
-    pause
-    exit /b 1
-)
-
-:: Check for administrator privileges
-net session >nul 2>&1
-if errorlevel 1 (
-    echo   [INFO] Administrator privileges required to modify registry.
-    echo   Requesting elevation...
-    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs -ArgumentList '--skip-self-update'"
-    exit /b 0
-)
-
-:: Apply registry setting
-echo   Applying CapsLock registry setting...
-reg import "%CAPSLOCK_REG_PATH%" >nul 2>&1
-if errorlevel 1 (
-    echo   [ERROR] Failed to apply registry setting.
-    pause
-    exit /b 1
-)
-echo   [SUCCESS] Registry setting applied.
-echo.
-
-:: Ask for reboot
-echo   ============================================
-echo   REBOOT REQUIRED
-echo   ============================================
-echo   The registry change requires a system reboot
-echo   to take effect.
-echo.
-set /p "REBOOT_CHOICE=   Reboot now? (Y/N): "
-if /i "%REBOOT_CHOICE%"=="Y" (
-    echo.
-    echo   Rebooting in 5 seconds...
-    shutdown /r /t 5
-    exit /b 0
-)
-echo   [INFO] Please reboot manually later for changes to take effect.
-echo.
-
-:capslock_done
-
-:: ============================================
-:: 2. Check and update binary version
-:: ============================================
-echo [2/5] Checking binary version...
+echo [1/4] Checking binary version...
 
 :: Read current version
 set "CURRENT_VERSION="
@@ -300,7 +227,7 @@ rmdir /s /q "%TEMP_DIR%" 2>nul
 :: ============================================
 :update_config
 echo.
-echo [3/5] Updating config and icons...
+echo [2/4] Updating config and icons...
 
 :: Check icons directory
 if not exist "icons" mkdir "icons"
@@ -329,7 +256,7 @@ echo   [DONE] Config update complete
 :: ============================================
 :run_kanata
 echo.
-echo [4/5] Starting Kanata...
+echo [3/4] Starting Kanata...
 
 :: Terminate all existing Kanata processes and CapsLock monitor
 echo   Checking existing Kanata processes...

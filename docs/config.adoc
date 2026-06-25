@@ -28,18 +28,20 @@ may have content not applicable to the version you are using.
 See below for links to specific guide versions.
 
 ifdef::env-github[]
+* https://github.com/jtroo/kanata/blob/v1.11.0/docs/config.adoc[v1.11.0]
+* https://github.com/jtroo/kanata/blob/v1.10.1/docs/config.adoc[v1.10.1]
 * https://github.com/jtroo/kanata/blob/v1.10.0/docs/config.adoc[v1.10.0]
 * https://github.com/jtroo/kanata/blob/v1.9.0/docs/config.adoc[v1.9.0]
 * https://github.com/jtroo/kanata/blob/v1.8.1/docs/config.adoc[v1.8.1]
 * https://github.com/jtroo/kanata/blob/v1.8.0/docs/config.adoc[v1.8.0]
-* https://github.com/jtroo/kanata/blob/v1.7.0/docs/config.adoc[v1.7.0]
 endif::[]
 ifndef::env-github[]
+* link:/config-1.11.0.html[v1.11.0]
+* link:/config-1.10.1.html[v1.10.1]
 * link:/config-1.10.0.html[v1.10.0]
 * link:/config-1.9.0.html[v1.9.0]
 * link:/config-1.8.1.html[v1.8.1]
 * link:/config-1.8.0.html[v1.8.0]
-* link:/config-1.7.0.html[v1.7.0]
 endif::[]
 
 == Preamble
@@ -327,6 +329,16 @@ e.g. in the example above, these affect keys other than `caps`.
 
 If a key is not mapped explicitly or through these wildcards, it will be implicitly mapped to a <<transparent-key,transparent key>>.
 
+**Key processing**
+
+The `$input` keys in all `deflayermap` sections will be processed by kanata, even if:
+
+* the layer is inactive
+* the key is omitted from `defsrc`
+* the `process-unmapped-keys` configuration is omitted, set to `no`, or the key is within `(all-except ...)`
+
+This is particularly relevant for the issue described in <<windows-only-windows-altgr>>.
+
 [[review-of-required-configuration-entries]]
 === Review of required configuration entries
 
@@ -387,6 +399,14 @@ IMPORTANT: On Windows, you should use either `kanata_winIOv2.exe`
 or Interception when using key names according to the browser `event.code`.
 The default `kanata.exe` does not do mappings according to the browser `event.code`
 key names.
+
+NOTE: On macOS, the ISO "#" key to the left of Enter reports
+`event.code` as `Backslash` in the browser, but the operating system
+delivers it to kanata as a distinct HID usage that the regular
+`\`/`Backslash` name does not match. Use the name `non_us_pound`
+(aliases: `NonUSPound`, `nuhs`) for that physical key on macOS. If
+you want the same config to work on Linux as well, pair this with
+`deflocalkeys-linux` to map evdev code 43 to the same name.
 
 [[deflocalkeys]]
 === deflocalkeys
@@ -1406,7 +1426,7 @@ The mouse button actions are:
 * `mbck`: backward mouse button
 
 The mouse button will be held while the key mapped to it is held.
-Only on Linux and Windows,
+On Linux, Windows, and macOS,
 the above actions are also usable in `defsrc`
 to enable remapping specified mouse actions in your layers,
 like you would with keyboard keys.
@@ -1473,7 +1493,7 @@ to remap scroll events as if they were keys,
 corresponding to up, down, left, right respectively:
 `mwu`, `mwd`, `mwl`, `mwr`.
 
-The remapping of mouse events is only effective on Linux and Windows.
+The remapping of mouse button and wheel events is effective on Linux, Windows, and macOS.
 
 NOTE:
 On Windows, the Kanata process must be restarted
@@ -1481,6 +1501,11 @@ for it to begin or to stop handling mouse events;
 changing defsrc then live-reloading will not
 begin handling mouse events
 if defsrc previously did not have any mouse events in defsrc.
+On macOS, live-reload can install the mouse event tap on the fly
+when a new config introduces mouse keys, but stopping the tap
+once installed still requires a restart.
+Mouse input on macOS requires Accessibility or Input Monitoring
+permission in System Settings > Privacy & Security.
 
 **Description**
 
@@ -1979,7 +2004,7 @@ Example:
 **Reference**
 
 The `tap-hold` action lets you activate different actions
-depending it a key is tapped or held.
+depending if a key is tapped or held.
 
 .Syntax:
 [source]
@@ -2015,6 +2040,10 @@ results in `$tap-action` activating.
 (tap-hold-release-tap-keys-release $tap-repress-timeout $hold-timeout $tap-action $hold-action $tap-trigger-keys-on-press $tap-trigger-keys-on-press-then-release)
 (tap-hold-except-keys $tap-repress-timeout $hold-timeout $tap-action $hold-action $tap-keys)
 (tap-hold-tap-keys $tap-repress-timeout $hold-timeout $tap-action $hold-action $tap-keys)
+(tap-hold-keys $tap-repress-timeout $hold-timeout $tap-action $hold-action [options...])
+(tap-hold-opposite-hand $timeout $tap-action $hold-action [options...])
+(tap-hold-opposite-hand-release $timeout $tap-action $hold-action [options...])
+(tap-hold-order $tap-repress-timeout $buffer-ms $tap-action $hold-action [options...])
 ----
 
 [cols="1,2"]
@@ -2052,7 +2081,7 @@ is pressed then released before hold activates.
 
 | `tap-hold-except-keys`
 | The `$tap-keys` parameter is a list of key names.
-Activates $tap-action if a key within $tap-keys is pressed
+Activates `$tap-action` if a key within `$tap-keys` is pressed
 or if the action key is released before hold timeout.
 No key is ever output until the action key is released
 or another key is pressed,
@@ -2065,7 +2094,43 @@ Unlike `tap-hold-release-keys`, does NOT activate `$hold-action` early
 when other keys are pressed and released.
 Waits for full `$hold-timeout` before activating `$hold-action`.
 This is useful for home row mods where fast typing should not trigger modifiers.
+
+| `tap-hold-keys`
+| A flexible tap-hold variant with named key list options.
+Options are: `(tap-on-press <keys...>)` activates `$tap-action` early if a listed key is pressed;
+`(tap-on-press-release <keys...>)` activates `$tap-action` early if a listed key is pressed then released;
+`(hold-on-press <keys...>)` activates `$hold-action` early if a listed key is pressed.
+For any other key: if that key is pressed and released while this key is waiting,
+`$hold-action` is triggered early (PermissiveHold behavior).
+All list options are optional.
+
+| `tap-hold-opposite-hand`
+| Resolves to `$hold-action` when a key from the opposite hand (per `defhands`) is pressed.
+Requires a `defhands` directive. Supports list-form options for fine-grained control.
+See <<defhands and tap-hold-opposite-hand>> below.
+
+| `tap-hold-opposite-hand-release`
+| Like `tap-hold-opposite-hand` but waits for the interrupting key to be pressed AND released
+before committing. This avoids misfires on fast same-hand rolls where keystrokes briefly overlap.
+Requires a `defhands` directive. Supports the same options as `tap-hold-opposite-hand`.
+
+| `tap-hold-order`
+| Resolves purely by key release order, with no timeout.
+If the tap-hold key is released before the other key, activates `$tap-action`;
+if the other key is released first (while the tap-hold key is still held), activates `$hold-action`.
+`$buffer-ms` is a grace period after the tap-hold key is pressed during which
+release-order logic is ignored so that fast typing resolves as tap.
+Optionally, `(require-prior-idle <ms>)` can short-circuit to tap when a different key
+was pressed within that many milliseconds before the tap-hold key;
+`require-prior-idle` checks prior typing activity before release-order logic begins,
+whereas `buffer-ms` creates an unconditional tap-only window after the key is pressed.
+This option is available on all tap-hold variants; see <<tap-hold-require-prior-idle>>.
 |===
+
+All `tap-hold` variants support an optional trailing `(require-prior-idle <ms>)` option
+to override the global <<tap-hold-require-prior-idle>> setting for that specific action.
+Use `(require-prior-idle 0)` to disable idle detection for a specific key.
+
 **Description**
 
 The `+tap-hold+` action allows you to have one action/key for a "tap" and a
@@ -2205,6 +2270,12 @@ It accepts a second list that activates the eager tap
 if the any key listed within is pressed then released;
 as opposed to only on a press.
 
+The keys in the 5th and 6th parameters correspond to the physical input keys,
+or in other words the key that corresponds to `defsrc`.
+This is in contrast to the `fork` and `switch` actions
+which operates on outputted keys, or in other words the outputs
+that are in `deflayer`, `defalias`, etc. for the corresponding `defsrc` key.
+
 .Example:
 [source]
 ----
@@ -2259,6 +2330,61 @@ or in other words the key that corresponds to `defsrc`.
   ath (tap-hold-tap-keys 200 200 a lsft (s d f))
 )
 ----
+
+==== defhands and tap-hold-opposite-hand
+
+`defhands` assigns physical keys to `left` / `right` hand groups.
+`tap-hold-opposite-hand` uses this to resolve hold when the next key
+is on the opposite hand — reducing misfires compared to manual key lists.
+
+[source]
+----
+(defhands
+  (left  q w e r t a s d f g z x c v b)
+  (right y u i o p h j k l ; n m , . /))
+
+(defalias
+  fctl (tap-hold-opposite-hand 180 f lctl))
+----
+
+`defhands` rules: at most one block; each group (`(left ...)`/`(right ...)`) at most once;
+a key cannot appear in both groups; partial definitions (only one hand) are allowed;
+unlisted keys have no hand assignment.
+
+`tap-hold-opposite-hand` takes `$timeout $tap-action $hold-action` followed by
+optional option lists. Most use `(name value)`, while `neutral-keys` uses
+followup key atoms: `(neutral-keys spc tab ...)`.
+It requires `defhands` to be defined.
+Internally it uses the same `HoldTapConfig::Custom` machinery as `tap-hold-release-keys`.
+
+[cols="1,1,1,2"]
+|===
+| Option | Values | Default | Description
+
+| `(timeout <value>)` | `tap`, `hold` | `tap` | Action when hold timeout elapses (optimized for home-row-mod behavior).
+| `(same-hand <value>)` | `tap`, `hold`, `ignore` | `tap` | Action when a same-hand key is pressed.
+| `(neutral-keys key ...)` | one or more key names | (empty) | Keys treated as neutral, overriding their `defhands` assignment.
+| `(neutral <value>)` | `tap`, `hold`, `ignore` | `ignore` | Action when a `neutral-keys` key is pressed.
+| `(unknown-hand <value>)` | `tap`, `hold`, `ignore` | `ignore` | Action when a key not in `defhands` is pressed.
+| `(require-prior-idle <ms>)` | `0`–`65535` | (disabled) | If a key was pressed within this many ms before the tap-hold key, resolve as tap immediately. Useful for avoiding accidental holds during fast typing.
+| `(tap-repress-timeout <ms>)` | `0`–`65535` | `0` | If the same key is re-pressed within this many ms after a tap, immediately tap again instead of entering the hold decision. `0` disables (every press enters the hold decision). See <<tap-hold,tap repress timeout>> for details.
+|===
+
+When a value is `ignore`, that key press is skipped and the action
+waits for the next key or timeout.
+
+Example with options:
+[source]
+----
+(defalias
+  fctl (tap-hold-opposite-hand 180 f lctl
+    (same-hand ignore)
+    (timeout hold)
+    (neutral-keys spc tab)
+    (neutral tap)))
+----
+
+See `cfg_samples/opposite-hand-hrm.kbd` for a full working example.
 
 [[macro]]
 === macro
@@ -2801,6 +2927,8 @@ if any of the items evaluates to true.
 (input-history $input-type $key-name $input-recency)
 (layer      $layer-name)
 (base-layer $layer-name)
+(device-history $device-id $device-recency)
+(cmd-exit   $exit-code)
 ----
 
 [cols="1,4"]
@@ -2844,7 +2972,27 @@ The max recency is 8.
 | `base-layer`
 | Evaluates to true if the most-recently-switched-to layer
 from a `layer-switch` action matches `$layer-name`.
+
+| `device-history`
+| Evaluates to true if the device in the `$device-recency` slot
+matches `$device-id`. A recency of 1 is the most recent device
+that sent an event. The max recency is 8.
+Device IDs are defined via <<definputdevices,`definputdevices`>>.
+Currently supported on macOS only.
+
+| `cmd-exit`
+| Requires a binary compiled with `cmd` enabled.
+| Evaluates to true if the process exit code of the most recent `init-cmd` matches `$exit-code`.
+  The `$exit-code` parameter must be a 32 bit signed integer.
 |===
+
+.Syntax of optional `switch` argument `init-cmd`:
+[source]
+----
+(switch
+  (init-cmd $binary $arg1 $arg2 ... $argN)
+  $logic-check1 $action1 $post-activate1 ...)
+----
 
 **Description**
 
@@ -3105,6 +3253,28 @@ if `layer-switch` has never been activated.
                  () z break
   )
 )
+----
+
+==== `init-cmd` and `cmd-exit`
+
+With a <<cmd,cmd-enabled>> Kanata variant
+you have access to the `init-cmd` optional switch parameter
+which goes before the normal switch syntax.
+This will execute a program synchronously,
+blocking the rest of Kanata's execution until it completes.
+What this enables is later use of `cmd-exit` logic item
+which can output different actions based on which exit code is returned by the command.
+
+.Example:
+[source]
+----
+(defalias
+  my-switch-with-cmd (switch
+    (init-cmd powershell.exe -c "if (-not (Test-Path 'myfile')) { exit 1 }")
+    ((cmd-exit 0)) a break
+    ((cmd-exit 1)) b break
+    () c break
+  ))
 ----
 
 
@@ -3506,6 +3676,240 @@ you may want to adjust <<override-release-on-activation>> in `defcfg`.
 )
 ----
 
+[[defoverridesv2]]
+=== defoverridesv2
+
+There is a more recent version of defoverrides that offers more customizability.
+Instead of 2 list items per override entry,
+`defoverridesv2` mandates 4, though the extra 2 can be empty.
+
+You cannot have both a v1 and v2 of `defoverrides` at the same time.
+
+The 3rd item is an "exclude modifiers list" which is composed of modifier key names
+(such as `lctl`, `lalt`) that, if held, will disable the override from activating.
+
+NOTE: if all excluded list modifiers are released while the
+override input is still active, the override will activate.
+You can avoid this by ensuring to always release the non-modifier key
+before releasing any modifiers.
+
+The 4th item is an "exclude layers" list which is composed of layer names
+that while active as the most recent `layer-switch` or `layer-while-held`,
+will disable the override from activating.
+
+NOTE: if the layer changes while the override input is still active,
+the override will activate.
+
+.Example:
+[source]
+----
+(defoverridesv2
+  ;; lctl+a will become lalt+9
+  ;; except when lsft is held or other-layer is active.
+  (lctl a) (lalt 9) (lsft) (other-layer))
+
+  ;; lctl+b will always become lalt+0
+  (lctl b) (lalt 0) () ()
+)
+----
+
+[[templates]]
+== Templates
+
+The top-level configuration item `deftemplate`
+declares a template that can be expanded multiple times
+via the list item `template-expand`.
+The short form of `template-expand` is `t!`.
+
+The parameters to `deftemplate` in order are:
+
+* Template name
+* List of template variables
+* Template content (any combination of lists / strings)
+
+Within the template content, variable names prefixed with `$`
+will be substituted with the expression passed into `template-expand`.
+
+The list item `template-expand` can be placed as a top-level list
+or within another list.
+Its parameters in order are:
+
+* template name
+* parameters to substitute into the template
+
+NOTE: Template expansion happens after file includes and before any other parsing.
+One consequence of this early parsing is that variables defined in `defvar`
+are **not** substituted when used inside of `template-expand`.
+This has consequences for condtional content, e.g. with `if-equal`.
+This is discussed further in Example 5.
+
+Example 1:
+
+In a simple example, let's say you wanted to set a large group of keys
+to do something different when you're holding alt. Yes, this could also
+be handled with remapping alt to a layer shift, but there are cases where
+you wouldn't want this. Rather than retyping the code with `fork` and
+`unmod` (to release alt) a bunch of times, you could template it like so:
+[source]
+----
+(deftemplate alt-fork (original-action new-action)
+  (fork $original-action (multi (unmod (ralt lalt) nop0) $new-action) (lalt ralt))
+)
+(defsrc 1 2 3)
+(defalias fn1 (template-expand alt-fork 1 f1))
+;; Templates are a simple text substitution, so the above is exactly equivalent to:
+;; (defalias fn1 (fork 1 (multi (unmod (ralt lalt) nop0) f1) (lalt ralt)))
+(defalias fn2 (template-expand alt-fork 2 f2))
+;; You can use t! as a short form of template-expand
+(defalias fn3 (t! alt-fork 3 f3))
+(deflayer default @fn1 @fn2 @fn3)
+----
+
+.Example 2:
+[source]
+----
+(defvar chord-timeout 200)
+(defcfg process-unmapped-keys yes)
+
+;; This template defines a chord group and aliases that use the chord group.
+;; The purpose is to easily define the same chord position behaviour
+;; for multiple layers that have different underlying keys.
+(deftemplate left-hand-chords (chordgroupname k1 k2 k3 k4 alias1 alias2 alias3 alias4)
+  (defalias
+    $alias1 (chord $chordgroupname $k1)
+    $alias2 (chord $chordgroupname $k2)
+    $alias3 (chord $chordgroupname $k3)
+    $alias4 (chord $chordgroupname $k4)
+  )
+  (defchords $chordgroupname $chord-timeout
+    ($k1) $k1
+    ($k2) $k2
+    ($k3) $k3
+    ($k4) $k4
+    ($k1 $k2) lctl
+    ($k3 $k4) lsft
+  )
+)
+
+(template-expand left-hand-chords qwerty a s d f qwa qws qwd qwf)
+;; t! is short for template-expand
+(t! left-hand-chords dvorak a o e u dva dvo dve dvu)
+
+(defsrc a s d f)
+(deflayer dvorak @dva @dvo @dve @dvu)
+(deflayer qwerty @qwa @qws @qwd @qwf)
+----
+
+.Example 3:
+[source]
+----
+;; This template defines a home row that customizes a single key's behaviour
+(deftemplate home-row (j-behaviour)
+  a s d f g h $j-behaviour k l ; '
+)
+
+(defsrc
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+       ;; usable even inside defsrc
+  caps (t! home-row j)                            ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           spc            ralt rmet rctl
+)
+
+(deflayer base
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+                                 ;; lists can be passed in too!
+  caps (t! home-row (tap-hold 200 200 j lctl))    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           spc            ralt rmet rctl
+)
+----
+
+=== if-equal
+
+Within a template you can use the list item `if-equal`
+to have conditionally-used items within a template.
+
+It accepts a minimum of 2 parameters.
+The first two parameters must be strings and are compared
+against each other.
+If they match, the following parameters are inserted into
+the template in place of the `if-equal` list.
+Otherwise if the strings do not match
+then the whole `if-equal` list is removed from the template.
+
+.Example 4:
+----
+(deftemplate home-row (version)
+  a s d f g h
+  (if-equal $version v1 j)
+  (if-equal $version v2 (tap-hold 200 200 j lctl))
+   k l ; '
+)
+
+(defsrc
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps (template-expand home-row v1)                            ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           spc            ralt rmet rctl
+)
+
+(deflayer base
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps (template-expand home-row v2)                            ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           spc            ralt rmet rctl
+)
+----
+
+Similar to `if-equal` are three more conditional operators for templates:
+
+* `if-not-equal`
+** the content is used if the first two string parameters are not equal
+* `if-in-list`
+** the content is used if the first string parameter exists in
+the second list-of-strings parameter
+* `if-not-in-list`
+** the content is used if the first string parameter does not exist in
+the second list-of-strings parameter
+
+.Example 5:
+----
+;; defvar is parsed AFTER template expansion occurs.
+(defvar a hello)
+
+(deftemplate template1 (var1)
+  a (if-equal hello $var1 b) c
+)
+
+;; Below will expand to: `a c` because the string
+;; $a itself is compared against the string hello
+;; and they are not equal.
+(template-expand template1 $a)
+
+(deftemplate template2 (var1)
+  a (if-equal $a $var1 b) c
+)
+
+;; Below will expand to: `a b c` because the string
+;; $a is compared against the string $a and they are equal.
+;; But note that the variable $a is still not substituted
+;; with its defvar value of: hello.
+(template-expand template2 $a)
+----
+
+[[concat-in-deftemplate]]
+=== concat in deftemplate
+
+Like <<concat-in-defvar,concat in defvar>>,
+a list beginning with `concat` within the content of `deftemplate`
+will be replaced with a single string that consists of
+all the subsequent items in the list concatenated to each other.
+
 == Include other files[[include]]
 
 The `include` optional configuration item
@@ -3704,9 +4108,137 @@ activated by a chord.
 )
 ----
 
-
 NOTE: Also see <<input-chords,v1 chords>>,
 which are configured differently and can be defined per-layer.
+
+[[chordsv2-processing-order]]
+=== Action processing order
+
+The chordsv2 system handles keys before any layer action handling.
+This has a consequence of not entering the delay and interruption flow
+of actions such as `tap-hold-release`.
+
+If you want a chordsv2 action activation to be processed
+by the aforementioned category of actions
+you can move the action into a virtual key
+(see <<virtual-keys>>) and have the chordsv2 action
+press and release the virtual key.
+
+See a sample below that showcases a reusable template.
+
+.Example:
+[source]
+----
+(defcfg concurrent-tap-hold yes)
+(defsrc)
+(deflayermap (base)
+  caps (tap-hold-release 0 200 esc lctl))
+
+;; defines a vkey named v-$key, example v-bspc
+;; and an alias @v-bspc that press and and releases the v-key
+;; within on-press and on-release respectively.
+(deftemplate v- (key)
+  (defvirtualkeys (concat v- $key) $key)
+  (defalias (concat v- $key)
+    (multi (on-press press-vkey (concat v- $key)) (on-release release-vkey (concat v- $key))))
+)
+
+(t! v- bspc)
+(t! v- del)
+(defchordsv2
+  (j k) @v-bspc 75 first-release ()
+  (s d) @v-del 75 first-release ()
+)
+----
+
+[[definputdevices]]
+== definputdevices
+
+**Reference**
+
+The optional `definputdevices` block maps user-chosen numeric device IDs
+to physical input devices, enabling per-device key mappings via the
+<<switch,`switch`>> action's `(device-history $id $recency)` condition.
+
+.Syntax:
+[source]
+----
+(definputdevices
+  $id1 ($matcher1a $matcher1b ...)
+  $id2 ($matcher2a ...)
+  ...
+)
+----
+
+[cols="1,4"]
+|===
+| `$id`
+| An integer from 1-255 used to reference this device in `(device-history $id $recency)` conditions. The value is arbitrary; use `defvar` to give IDs meaningful names.
+
+| `($matcher ...)`
+| A list of matcher expressions. All matchers within an entry must match for a device to be assigned that ID (AND semantics).
+|===
+
+.Available matchers:
+[cols="1,4"]
+|===
+| `(name "...")`
+| Matches devices whose product name contains the given string.
+
+| `(hash "...")`
+| Matches devices whose hex hash equals the given string.
+Use `kanata --list` to see device hashes.
+
+| `(vendor_id N)`
+| Matches devices with the given USB vendor ID. Valid values: decimal 0-65535, or hex `0x0-0xFFFF`.
+
+| `(product_id N)`
+| Matches devices with the given USB product ID. Valid values: decimal 0-65535, or hex `0x0-0xFFFF`.
+|===
+
+**Description**
+
+`definputdevices` is useful when you have multiple keyboards with different
+physical layouts and want to unify their behavior — for example, to remap
+swapped modifier key positions between Ctrl, Meta, and Alt across devices.
+
+The kanata-defined IDs are arbitrary numbers whose only purpose is referencing
+within the `switch` action's `(device-history $id $recency)` condition.
+Using `defvar` to name them is recommended for readability.
+
+Device history only records press events (not release or repeat).
+If a key is pressed on a device not listed in `definputdevices`, the history
+slot will be recorded as "unknown" and will not match any device ID.
+
+.Example:
+[source]
+----
+(defvar
+  id-AppleInternal 1
+  id-Go60          2
+)
+
+(definputdevices
+  $id-AppleInternal ((name "Apple Internal Keyboard"))
+  $id-Go60 ((name "Go60") (vendor_id 0x1D50) (product_id 0x615E))
+)
+
+(defsrc a)
+(deflayer base
+  (switch
+    ((device-history $id-AppleInternal  1)) x break
+    ((device-history $id-Go60           1)) y break
+    () a break))
+----
+
+In this example, pressing `a` on the internal keyboard outputs `x`,
+pressing `a` on the Go60 outputs `y`, and pressing `a` on any other
+device outputs `a`.
+
+NOTE: Device IDs are matched at startup. Devices plugged in after kanata
+starts will not be recognized. Live reload does not re-read device mappings.
+
+NOTE: Currently supported on macOS only. Linux support is planned.
 
 [[optional-defcfg-options]]
 == defcfg options
@@ -3991,6 +4523,77 @@ The default (and minimum) value is `5` and the unit is milliseconds.
 )
 ----
 
+[[tap-hold-require-prior-idle]]
+=== tap-hold-require-prior-idle
+
+This configuration applies to all `tap-hold` variants.
+When a different physical key was pressed within the configured number of
+milliseconds before a `tap-hold` key is pressed, the `tap-hold` key will
+immediately resolve as its tap action without entering the waiting state.
+This prevents accidental modifier activations during fast typing.
+The concept is equivalent to ZMK's `require-prior-idle-ms`.
+
+NOTE: For more info, see <<tap-hold>>.
+
+The default value is `0` (disabled) and the unit is milliseconds.
+
+.Example:
+[source]
+----
+(defcfg
+  tap-hold-require-prior-idle 150
+)
+----
+
+- If you type a normal key and then press a `tap-hold` key within the threshold,
+  the `tap-hold` key immediately outputs its tap action.
+- If the keyboard is idle for longer than the threshold before pressing a `tap-hold` key,
+  normal `tap-hold` behavior applies (waiting state, hold on timeout, etc.).
+- When `tap-hold-require-prior-idle` triggers, the tap action is chosen before any other
+  `tap-hold` configuration (e.g., `tap-hold-opposite-hand`, `concurrent-tap-hold`)
+  is consulted.
+
+==== Per-action override
+
+The global `tap-hold-require-prior-idle` value can be overridden on individual
+`tap-hold` actions using the `(require-prior-idle <ms>)` option.
+This is useful when most keys benefit from idle detection (e.g., home-row mods)
+but specific keys (e.g., a layer-tap key) need immediate activation even during
+fast typing.
+
+The option can be appended to any `tap-hold` variant as a trailing
+`(keyword value)` list:
+
+.Example: disable for a specific key
+[source]
+----
+(defcfg tap-hold-require-prior-idle 150)
+(defalias
+  ;; HRMs use the global 150ms threshold
+  a (tap-hold 200 200 a lmet)
+  s (tap-hold 200 200 s lalt)
+  ;; Layer key disables idle detection for immediate activation
+  nav (tap-hold 200 200 tab (layer-toggle nav) (require-prior-idle 0))
+)
+----
+
+.Example: enable for a specific key without a global setting
+[source]
+----
+(defalias
+  a (tap-hold 200 200 a lmet (require-prior-idle 150))
+)
+----
+
+- `(require-prior-idle 0)` disables the feature for that action,
+  even when a global threshold is set.
+- A non-zero value enables or changes the threshold for that action only.
+- When no per-action override is specified, the global `defcfg` value is used.
+- Works with all `tap-hold` variants: `tap-hold`, `tap-hold-press`,
+  `tap-hold-release`, `tap-hold-press-timeout`, `tap-hold-release-timeout`,
+  `tap-hold-release-keys`, `tap-hold-except-keys`, `tap-hold-tap-keys`,
+  and `tap-hold-opposite-hand`.
+
 [[override-release-on-activation]]
 === override-release-on-activation
 
@@ -4079,7 +4682,7 @@ the swapped "i" and "o" keys.
 ----
 
 [[mouse-movement-key]]
-=== Linux or Windows-interception only: mouse-movement-key
+=== Linux, macOS, or Windows-interception only: mouse-movement-key
 
 Accepts a single key name.
 When configured, whenever a mouse cursor movement is received,
@@ -4102,10 +4705,14 @@ The `mvmt` key name is specially intended for this purpose.  It has no
 output key mapping and cannot be supplied as an action; however, any
 key may be used.
 
-Supports live reload on Linux, but with Windows-interception, this
+Supports live reload on Linux and macOS. With Windows-interception, this
 option must be present on startup to enable mouse movement event
 collection, so restart is required to enable it. Changing the key name
 is always supported, however.
+
+On macOS, this feature uses the same CGEventTap as the existing mouse
+button input support, and so requires the same Accessibility or Input
+Monitoring permission in System Settings > Privacy & Security.
 
 .Example:
 [source]
@@ -4393,7 +5000,7 @@ The default value is kanata.
 === Linux only: linux-output-device-bus-type
 
 Kanata on Linux needs to declare a "bus type" for its evdev output device.
-The options are `USB` and `I8042`, with the default as `I8042`.
+The options are `USB`, `I8042`, and `virtual`, with the default as `I8042`.
 Using USB can https://github.com/jtroo/kanata/pull/661[break disable-touchpad-while-typing on Wayland].
 But using I8042 appears to break https://github.com/jtroo/kanata/issues/1131[some other scenarios].
 Thus the output bus type is configurable.
@@ -4451,12 +5058,41 @@ Use `kanata -l` or `kanata --list` to list the available keyboards.
   )
 )
 ----
+
+[[macos-only-macos-continue-if-no-devs-found]]
+=== macOS only: macos-continue-if-no-devs-found
+
+By default, kanata will exit with an error if no input devices matching
+the configured include list are found at startup. Setting
+`macos-continue-if-no-devs-found` changes this: kanata keeps running and
+waits for matching devices to connect, then grabs them automatically.
+
+This is useful for Bluetooth or USB keyboards that may not be connected
+at boot time. When the device later appears (e.g. Bluetooth pairs, USB
+plugged in), kanata captures it and begins remapping.
+
+Works with `macos-dev-names-include` and `definputdevices`.
+This has no effect with macOS laptops when no device filter is configured
+because the default enumeration always finds the built-in keyboard.
+
+.Example:
+[source]
+----
+(defcfg
+  macos-dev-names-include ("My BT Keyboard")
+  macos-continue-if-no-devs-found yes
+)
+----
+
 [[windows-only-windows-altgr]]
 === Windows only: windows-altgr
 
-There is an option for Windows to mitigate the strange behaviour of AltGr (ralt)
-if you're using `process-unmapped-keys yes` or have the key in your defsrc.
-This is applicable for many non-US layouts.
+There is an option for Windows to mitigate the strange behaviour of AltGr
+(key names: `ralt | altgr`) if you're using `process-unmapped-keys yes`
+or have the AltGr key or the Left Control key
+in your `defsrc` or in any `deflayermap` `$input` position.
+This is applicable for many non-US layouts
+that use AltGr for adding modifier accents to characters.
 You can use one of the listed values to change what kanata does with the key:
 
 * `cancel-lctl-press`
@@ -4465,9 +5101,10 @@ You can use one of the listed values to change what kanata does with the key:
 ** This adds an `lctl` release when `ralt` is released
 
 Without these workarounds,
-you should use `process-unmapped-keys (all-except lctl ralt))`,
-or use `process-unmapped-keys no`
-**and** also omit both `ralt` and `lctl` from `defsrc`.
+within <<process-unmapped-keys,`defcfg`>> you should use
+`process-unmapped-keys (all-except lctl ralt))` or `process-unmapped-keys no`
+**and** also omit both `ralt` and `lctl` from `defsrc`
+and any <<deflayermap,`deflayermap`>> `$input` position.
 
 .Example:
 [source]
@@ -4481,7 +5118,15 @@ For more context, see: https://github.com/jtroo/kanata/issues/55.
 
 NOTE: Even with these workarounds, putting `+lctl+` and `+ralt+` in your defsrc may not
 work properly with other applications that also use keyboard interception.
-Known application with issues: GWSL/VcXsrv
+Known application with issues: GWSL/VcXsrv.
+In this case it is recommended to ensure the keys are omitted from processing.
+
+NOTE: Even if a workaround is applied in Kanata,
+if you use other LLHOOK-using programs such as
+PowerToys Keyboard Manager or AutoHotKey (AHK),
+you can still experience issues.
+PowerToys has no workaround while with AHK
+you may be able to script your own workaround.
 
 === Windows only: windows-interception-mouse-hwid[[windows-only-windows-interception-mouse-hwid]]
 
@@ -4903,6 +5548,12 @@ These are sent automatically when events occur:
 
 | `{"Error":{"msg":"error description"}}`
 | Sent when an error occurs processing a command.
+
+| `{"HoldActivated":{"key":"caps"}}`
+| Sent when a tap-hold key transitions to hold state. The `key` field is the physical key name.
+
+| `{"TapActivated":{"key":"a"}}`
+| Sent when a tap-hold key triggers its tap action. The `key` field is the physical key name.
 |===
 
 ===== Query Responses
@@ -4926,7 +5577,7 @@ These are sent in response to client queries:
 | Response to `RequestCurrentLayerInfo`. Contains the layer name and its full configuration text.
 
 | `{"HelloOk":{"version":"1.11.0","protocol":1,"capabilities":[...]}}`
-| Response to `Hello`. Contains server version, protocol version, and supported capabilities.
+| Response to `Hello`. Contains server version, protocol version, and supported capabilities. Includes `hold-activated` and `tap-activated`.
 
 | `{"ReloadResult":{"ok":true}}`
 | Response to reload commands when `wait` was `true`. Indicates whether the config reload succeeded. If timed out, includes `timeout_ms`.
@@ -4962,6 +5613,9 @@ but is very verbose.
 By default, Kanata adds a delay before reading keyboard inputs.
 This helps protect against stale states
 when started from a terminal.
+
+Without this delay, Kanata may interpret any keys you're still holding down when it starts
+as being stuck.
 
 However, this may be undesirable
 when running as a background service.
@@ -5006,6 +5660,24 @@ in case this is an issue impacting you.
 
 List keyboard names that can be used
 within defcfg and then exit.
+
+[[args-macos-release-grab-on-lock]]
+=== macOS only - Release grab on lock / user switch: `--release-grab-on-lock`
+
+By default, kanata's keyboard grab on macOS stays active even when
+the screen is locked or another user takes the console via fast user
+switching. This means anyone else at the keyboard (including you on
+the lock-screen prompt) types through your remap.
+
+Pass `--release-grab-on-lock` to make kanata poll its CGSession state
+and release the grab whenever the screen is locked
+(`CGSSessionScreenIsLocked`) or kanata's session loses the console
+(`kCGSSessionOnConsoleKey == false`). The grab is re-acquired once
+kanata's session is back on the console with the screen unlocked.
+
+This is useful on shared Macs where another user's lock-screen
+password or session should not be remapped. Off by default to
+preserve the historical always-grab behavior for single-user setups.
 
 == Advanced features[[advanced-features]]
 [[virtual-keys]]
@@ -5219,9 +5891,17 @@ precisely, the action triggered is:
 There are 10 special keys with names `nop0-nop9` which kanata treats specially.
 Kanata will never send OS events for these keys
 but they can still participate in sequences.
+See an example of using the nop keys below.
 
-See an example of using the nop keys
-alongside templates to define sequences below.
+Additionally useful to note in this example is the use of a template
+to define a sequence and its virtual key in one template expansion,
+with template parameters:
+
+- virtual key name
+- activating key sequence
+- action triggered by sequence activation
+
+This template may be useful to you within your own configuration.
 
 .Example:
 [source]
@@ -5543,203 +6223,6 @@ $env:VAR_NAME = "var_value"
 # bash
 VAR_NAME=var_value
 ----
-
-[[templates]]
-=== Templates
-
-The top-level configuration item `deftemplate`
-declares a template that can be expanded multiple times
-via the list item `template-expand`.
-The short form of `template-expand` is `t!`.
-
-The parameters to `deftemplate` in order are:
-
-* Template name
-* List of template variables
-* Template content (any combination of lists / strings)
-
-Within the template content, variable names prefixed with `$`
-will be substituted with the expression passed into `template-expand`.
-
-The list item `template-expand` can be placed as a top-level list
-or within another list.
-Its parameters in order are:
-
-* template name
-* parameters to substitute into the template
-
-NOTE: Template expansion happens after file includes and before any other parsing.
-One consequence of this early parsing is that variables defined in `defvar`
-are **not** substituted when used inside of `template-expand`.
-This has consequences for condtional content, e.g. with `if-equal`.
-This is discussed further in Example 5.
-
-Example 1:
-
-In a simple example, let's say you wanted to set a large group of keys
-to do something different when you're holding alt. Yes, this could also
-be handled with remapping alt to a layer shift, but there are cases where
-you wouldn't want this. Rather than retyping the code with `fork` and
-`unmod` (to release alt) a bunch of times, you could template it like so:
-[source]
-----
-(deftemplate alt-fork (original-action new-action)
-  (fork $original-action (multi (unmod (ralt lalt) nop0) $new-action) (lalt ralt))
-)
-(defsrc 1 2 3)
-(defalias fn1 (template-expand alt-fork 1 f1))
-;; Templates are a simple text substitution, so the above is exactly equivalent to:
-;; (defalias fn1 (fork 1 (multi (unmod (ralt lalt) nop0) f1) (lalt ralt)))
-(defalias fn2 (template-expand alt-fork 2 f2))
-;; You can use t! as a short form of template-expand
-(defalias fn3 (t! alt-fork 3 f3))
-(deflayer default @fn1 @fn2 @fn3)
-----
-
-.Example 2:
-[source]
-----
-(defvar chord-timeout 200)
-(defcfg process-unmapped-keys yes)
-
-;; This template defines a chord group and aliases that use the chord group.
-;; The purpose is to easily define the same chord position behaviour
-;; for multiple layers that have different underlying keys.
-(deftemplate left-hand-chords (chordgroupname k1 k2 k3 k4 alias1 alias2 alias3 alias4)
-  (defalias
-    $alias1 (chord $chordgroupname $k1)
-    $alias2 (chord $chordgroupname $k2)
-    $alias3 (chord $chordgroupname $k3)
-    $alias4 (chord $chordgroupname $k4)
-  )
-  (defchords $chordgroupname $chord-timeout
-    ($k1) $k1
-    ($k2) $k2
-    ($k3) $k3
-    ($k4) $k4
-    ($k1 $k2) lctl
-    ($k3 $k4) lsft
-  )
-)
-
-(template-expand left-hand-chords qwerty a s d f qwa qws qwd qwf)
-;; t! is short for template-expand
-(t! left-hand-chords dvorak a o e u dva dvo dve dvu)
-
-(defsrc a s d f)
-(deflayer dvorak @dva @dvo @dve @dvu)
-(deflayer qwerty @qwa @qws @qwd @qwf)
-----
-
-.Example 3:
-[source]
-----
-;; This template defines a home row that customizes a single key's behaviour
-(deftemplate home-row (j-behaviour)
-  a s d f g h $j-behaviour k l ; '
-)
-
-(defsrc
-  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
-  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
-       ;; usable even inside defsrc
-  caps (t! home-row j)                            ret
-  lsft z    x    c    v    b    n    m    ,    .    /    rsft
-  lctl lmet lalt           spc            ralt rmet rctl
-)
-
-(deflayer base
-  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
-  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
-                                 ;; lists can be passed in too!
-  caps (t! home-row (tap-hold 200 200 j lctl))    ret
-  lsft z    x    c    v    b    n    m    ,    .    /    rsft
-  lctl lmet lalt           spc            ralt rmet rctl
-)
-----
-
-==== if-equal
-
-Within a template you can use the list item `if-equal`
-to have condiditionally-used items within a template.
-
-It accepts a minimum of 2 parameters.
-The first two parameters must be strings and are compared
-against each other.
-If they match, the following parameters are inserted into
-the template in place of the `if-equal` list.
-Otherwise if the strings do not match
-then the whole `if-equal` list is removed from the template.
-
-.Example 4:
-----
-(deftemplate home-row (version)
-  a s d f g h
-  (if-equal $version v1 j)
-  (if-equal $version v2 (tap-hold 200 200 j lctl))
-   k l ; '
-)
-
-(defsrc
-  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
-  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
-  caps (template-expand home-row v1)                            ret
-  lsft z    x    c    v    b    n    m    ,    .    /    rsft
-  lctl lmet lalt           spc            ralt rmet rctl
-)
-
-(deflayer base
-  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
-  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
-  caps (template-expand home-row v2)                            ret
-  lsft z    x    c    v    b    n    m    ,    .    /    rsft
-  lctl lmet lalt           spc            ralt rmet rctl
-)
-----
-
-Similar to `if-equal` are three more conditional operators for templates:
-
-* `if-not-equal`
-** the content is used if the first two string parameters are not equal
-* `if-in-list`
-** the content is used if the first string parameter exists in
-the second list-of-strings parameter
-* `if-not-in-list`
-** the content is used if the first string parameter does not exist in
-the second list-of-strings parameter
-
-.Example 5:
-----
-;; defvar is parsed AFTER template expansion occurs.
-(defvar a hello)
-
-(deftemplate template1 (var1)
-  a (if-equal hello $var1 b) c
-)
-
-;; Below will expand to: `a c` because the string
-;; $a itself is compared against the string hello
-;; and they are not equal.
-(template-expand template1 $a)
-
-(deftemplate template2 (var1)
-  a (if-equal $a $var1 b) c
-)
-
-;; Below will expand to: `a b c` because the string
-;; $a is compared against the string $a and they are equal.
-;; But note that the variable $a is still not substituted
-;; with its defvar value of: hello.
-(template-expand template2 $a)
-----
-
-[[concat-in-deftemplate]]
-==== concat in deftemplate
-
-Like <<concat-in-defvar,concat in defvar>>,
-a list beginning with `concat` within the content of `deftemplate`
-will be replaced with a single string that consists of
-all the subsequent items in the list concatenated to each other.
 
 [[custom-tap-hold-behaviour]]
 === Custom tap-hold behaviour

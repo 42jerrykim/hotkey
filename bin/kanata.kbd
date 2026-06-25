@@ -29,6 +29,9 @@
   log-layer-changes no
 
   ;; 매핑되지 않은 키도 처리 (투명 키 동작을 위해 필요)
+  ;; ralt는 defsrc에서 @han으로 처리 (arbitrary-code 21 전송)
+  ;; - ralt를 re-emit하지 않으므로 AltGr 이중이벤트 발생 없음
+  ;; - MSTSC host kanata가 VK_HANGUL 전송 → MSTSC가 ralt로 변환 → 이 설정이 처리
   process-unmapped-keys yes
 
   ;; 마우스 가속도 상태 유지 (방향 전환 시에도 가속 상태 유지)
@@ -41,11 +44,12 @@
 ;; ============================================
 ;; 2. defsrc - 소스 키 정의
 ;; ============================================
-;; 주의: disable_capslock.reg 적용 후 CapsLock이 F13으로 변환됨
+;; kanata가 CapsLock을 직접 가로채므로 레지스트리 변환(F13) 불필요
+;; CapsLock 이벤트가 RDP(MSTSC)를 통해 remote로 전달되지 않음
 (defsrc
   esc  1    2    3    4    5    6    7    8    9    0    -    =    bspc
   tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
-  f13  a    s    d    f    g    h    j    k    l    ;    '    ret
+  caps a    s    d    f    g    h    j    k    l    ;    '    ret
   lsft z    x    c    v    b    n    m    ,    .    /    rsft
   lctl lmet lalt           spc            ralt rmet rctl
 )
@@ -58,6 +62,14 @@
   hold-timeout 200     ;; 홀드 인식 타임아웃 (ms)
   spc-hold-timeout 200 ;; Space 홀드 타임아웃
   hrm-timeout 200      ;; Home Row Mods 홀드 타임아웃
+
+  ;; HRM 오발동 방지용 "탭 확정 키" 목록 (같은 손 키)
+  ;; 홀드 중 같은 손 키를 누르면 즉시 문자(탭)로 확정되어
+  ;; 빠른 타이핑 시 f/j 등이 의도치 않게 모디파이어로 굳는 것을 방지
+  ;; spc/ret/bspc/tab 포함: HRM 키 누른 뒤 이 키를 치면 즉시 tap으로 확정
+  ;; (미포함 시 200ms 타임아웃 후 mod로 확정될 위험)
+  left-keys  (q w e r t a s d f g z x c v b spc ret bspc tab)
+  right-keys (y u i o p h j k l ; n m , . / spc ret bspc tab)
 )
 
 ;; ============================================
@@ -73,10 +85,15 @@
 ;; ============================================
 (defalias
   ;; --------------------------------------------
-  ;; F13 (CapsLock): 탭 = 한영전환, 홀드 = mouse 레이어
+  ;; 한영전환: VK_HANGUL(0x15) 직접 전송
+  ;; ralt(한/영 물리키 또는 MSTSC가 변환한 VK_HANGUL) → @han
+  ;; ralt를 re-emit하지 않으므로 AltGr 이중이벤트 없음
   ;; --------------------------------------------
-  ;; Registry에서 CapsLock→F13 변환되어 CapsLock 상태 문제 없음
-  ;; 한영키 코드 0x15(21)를 직접 전송
+  han (arbitrary-code 21)
+
+  ;; --------------------------------------------
+  ;; CapsLock: 탭 = 한영전환, 홀드 = mouse 레이어
+  ;; --------------------------------------------
   cap (tap-hold-press $tap-timeout $hold-timeout (arbitrary-code 21) (layer-toggle mouse))
 
   ;; --------------------------------------------
@@ -131,20 +148,38 @@
   )
 
   ;; --------------------------------------------
-  ;; Home Row Mods - AWSC 배치
+  ;; Home Row Mods - ASDF 배치
   ;; 탭 = 문자, 홀드 = 모디파이어
   ;; --------------------------------------------
+  ;; tap-hold-tap-keys 사용 (공식 문서가 HRM용으로 권장):
+  ;;   - 홀드 중 같은 손 키($left-keys/$right-keys)를 누르면 즉시 "탭"(문자)으로 확정
+  ;;   - 그 외 키는 $hrm-timeout(200ms) 전체를 기다린 뒤에만 모디파이어 발동
+  ;;   => 빠른 타이핑 중 f/j 등이 의도치 않게 Ctrl로 굳는 오발동을 방지
+  ;;
+  ;; 모디파이어 조합(예: Ctrl+P)을 쓰려면 해당 HRM 키를 200ms 이상 확실히 누른 뒤 조합키 입력.
+
   ;; 왼손: Alt, GUI(Win), Shift, Ctrl
-  hrm-a (tap-hold $tap-timeout $hrm-timeout a lalt)
-  hrm-s (tap-hold $tap-timeout $hrm-timeout s lmet)
-  hrm-d (tap-hold $tap-timeout $hrm-timeout d lsft)
-  hrm-f (tap-hold $tap-timeout $hrm-timeout f lctl)
+  hrm-a (tap-hold-tap-keys $tap-timeout $hrm-timeout a lalt $left-keys)
+  hrm-s (tap-hold-tap-keys $tap-timeout $hrm-timeout s lmet $left-keys)
+  hrm-d (tap-hold-tap-keys $tap-timeout $hrm-timeout d lsft $left-keys)
+  hrm-f (tap-hold-tap-keys $tap-timeout $hrm-timeout f lctl $left-keys)
 
   ;; 오른손: Ctrl, Shift, GUI(Win), Alt (미러)
-  hrm-j (tap-hold $tap-timeout $hrm-timeout j lctl)
-  hrm-k (tap-hold $tap-timeout $hrm-timeout k lsft)
-  hrm-l (tap-hold $tap-timeout $hrm-timeout l lmet)
-  hrm-; (tap-hold $tap-timeout $hrm-timeout ; lalt)
+  hrm-j (tap-hold-tap-keys $tap-timeout $hrm-timeout j lctl $right-keys)
+  hrm-k (tap-hold-tap-keys $tap-timeout $hrm-timeout k lsft $right-keys)
+  hrm-l (tap-hold-tap-keys $tap-timeout $hrm-timeout l lmet $right-keys)
+  hrm-; (tap-hold-tap-keys $tap-timeout $hrm-timeout ; lalt $right-keys)
+
+  ;; --------------------------------------------
+  ;; Mod 강제 해제: MSTSC 세션 전환 등으로 key-up 이벤트가 유실되어
+  ;; modifier가 눌린 채 남을 때 사용 (nav 레이어의 B 키에 배치)
+  ;; --------------------------------------------
+  mrls (multi
+    (release-key lalt) (release-key ralt)
+    (release-key lctl) (release-key rctl)
+    (release-key lsft) (release-key rsft)
+    (release-key lmet) (release-key rmet)
+  )
 )
 
 ;; ============================================
@@ -155,7 +190,7 @@
   tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
   @cap @hrm-a @hrm-s @hrm-d @hrm-f g h @hrm-j @hrm-k @hrm-l @hrm-; '  ret
   lsft z    x    c    v    b    n    m    ,    .    /    rsft
-  lctl lmet lalt           @spc           ralt rmet rctl
+  lctl lmet lalt           @spc           @han rmet rctl
 )
 
 ;; ============================================
@@ -217,6 +252,6 @@
   _    _    _    _    _    _    _    _    _    _    _    _    _    _
   _    esc  C-w  C-e  C-r  C-t  pgup home up   end  del  _    _    _
   _    C-a  @nav-s @atab @nav-f _  pgdn left down rght _    _    C-ret
-  _    C-z  C-x  C-c  C-v  _    del bspc  _    _    _    _
+  _    C-z  C-x  C-c  C-v  @mrls del bspc  _    _    _    _
   _    _    _              _              _    _    _
 )
