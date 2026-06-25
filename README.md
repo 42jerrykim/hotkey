@@ -29,3 +29,9 @@
 ### 로컬 테스트
 
 설정 파일을 수정한 뒤 원격 다운로드 없이 바로 테스트하려면 [`kanata/run_local_test.bat`](kanata/run_local_test.bat)을 실행하세요. 실행 중인 Kanata 프로세스를 종료하고 로컬 `kanata/bin`의 바이너리와 설정으로 다시 시작합니다.
+
+## AutoHotkey 레거시 구현 ([`autohotkey/`](autohotkey))
+
+`autohotkey/JHotKey.ahk`를 시작점으로 하는 AutoHotkey v2 구현으로, 현재 `kanata/bin/kanata.kbd`가 제공하는 것과 동일한 기능(한영 전환, Home Row Mods, Mouse/Nav 레이어)의 원본입니다. Kanata로 전환된 이후에는 더 이상 실행 대상이 아니며, 참고 및 기록 목적으로만 보존합니다.
+
+두 구현은 동일한 동작을 독립적으로 구현하고 있으므로, 키 매핑이나 타이밍을 변경할 때는 `kanata/bin/kanata.kbd`만 수정하면 됩니다. `autohotkey/`는 더 이상 동기화 대상이 아닙니다.
