@@ -1,7 +1,8 @@
 @echo off
 setlocal
 
-set "HOTKEY_DIR=C:\Jerry\Util\Hotkey"
+set "HOTKEY_DIR=%~dp0"
+set "HOTKEY_DIR=%HOTKEY_DIR:~0,-1%"
 
 :: Check if already in PATH
 echo %PATH% | findstr /i /c:"%HOTKEY_DIR%" >nul 2>&1
