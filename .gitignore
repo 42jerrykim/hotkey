@@ -5,9 +5,6 @@
 *.lib
 *.obj
 *.bak
-version.txt
 
-# Temp files for update script
-*.new
-kanata_update_*.bat
-run_kanata.vbs
+# 실행 로그 (진단용, 기기별로 로컬에만 유지)
+logs/
