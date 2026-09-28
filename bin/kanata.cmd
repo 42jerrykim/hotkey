@@ -6,6 +6,15 @@ set "FOCUSPIDFILE=%TEMP%\kanata_focus_watcher.pid"
 set "POLL_INTERVAL_MS=250"
 set "KANATA_TCP_PORT=7070"
 
+if exist "%CAPSPIDFILE%" (
+    for /f %%P in ('type "%CAPSPIDFILE%"') do taskkill /PID %%P /F >nul 2>&1
+    del "%CAPSPIDFILE%" >nul 2>&1
+)
+if exist "%FOCUSPIDFILE%" (
+    for /f %%P in ('type "%FOCUSPIDFILE%"') do taskkill /PID %%P /F >nul 2>&1
+    del "%FOCUSPIDFILE%" >nul 2>&1
+)
+
 set "LOGDIR=%SELF_DIR%\logs"
 if not exist "%LOGDIR%" mkdir "%LOGDIR%"
 for /f "usebackq delims=" %%T in (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"`) do set "TS=%%T"
