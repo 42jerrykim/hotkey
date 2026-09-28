@@ -183,6 +183,23 @@
 )
 
 ;; ============================================
+;; 4-1. defvirtualkeys - TCP로 외부에서 트리거 가능한 가상 키
+;; ============================================
+;; mrls-auto: mrls와 동일한 강제 해제 동작을 TCP(ActOnFakeKey)로 외부에서
+;; 트리거할 수 있게 노출. bin/kanata.cmd에 내장된 focus watcher가 mstsc로
+;; 포커스가 전환되는 순간 이걸 호출해 stuck modifier를 자동 정리한다.
+;; kanata TCP 서버는 127.0.0.1에만 바인딩되므로 외부 네트워크 노출은 없지만,
+;; 로컬의 다른 프로세스가 임의로 트리거할 수 있다는 점은 감안할 것.
+(defvirtualkeys
+  mrls-auto (multi
+    (release-key lalt) (release-key ralt)
+    (release-key lctl) (release-key rctl)
+    (release-key lsft) (release-key rsft)
+    (release-key lmet) (release-key rmet)
+  )
+)
+
+;; ============================================
 ;; 5. deflayer base - 기본 레이어
 ;; ============================================
 (deflayer base
