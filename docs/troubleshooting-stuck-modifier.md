@@ -68,15 +68,26 @@ Ctrl 계열에서 같은 현상이 나려면 다음과 같은 흐름이 유력�
 - `mrls-auto`는 `release-key`만 사용하므로 press 이벤트를 만들지 않는다. 즉 `@han`(한영전환, `ralt`의 press에만 반응)을 직접 트리거하지 않는다 — 자세한 검토는 아래 "위험 검토" 참고.
 - 워처 로그는 `[FocusWatcher]` 태그를 붙여 kanata 본 로그와 같은 파일(`%LOGFILE%`)에 함께 남는다.
 
-### CapsLock 보정 워처 폴링 간격 단축 + 로깅
+### CapsLock 보정 워처 폴링 간격 단축 + 디바운스 + 포커스 인지
 
-기존 CapsLock lock-state 보정 워처(60초 간격)를 focus watcher와 같은 `POLL_INTERVAL_MS=250`(250ms)으로 통일했다. `IsKeyLocked`/`GetForegroundWindow` 모두 가벼운 API 호출이라 이 정도 간격에서 CPU 부담은 무시할 수준이다.
+기존 CapsLock lock-state 보정 워처(60초 간격)를 focus watcher와 같은 `CAPS_POLL_INTERVAL_MS=250`(250ms)으로 단축했다. 다만 그대로 두면 두 가지 오탐이 발생해 추가로 다음을 적용했다.
+
+1. **디바운스(1초)**: 사용자가 의도적으로 CapsLock을 탭해도 Windows의 `IsKeyLocked('CapsLock')`이 일시적으로 true였다가 저절로 false로 돌아가는 현상이 실측 확인됐다(약 530ms 지속). `IsKeyLocked`가 true여도 즉시 보정하지 않고 1초 뒤 재확인해서 그때도 true일 때만 보정하도록 바꿨다. 1초는 실측된 일시적 true 구간(530ms)보다 충분히 길게 잡은 값이다.
+2. **mstsc 포커스 중엔 보정 지연**: host의 보정 SendKeys도 일반 키 입력과 같은 경로를 타므로, 디바운스를 통과해 "진짜 stuck 상태"로 판정되더라도 그 순간 foreground가 `mstsc`면 보정을 그대로 쏘지 않고 다음 폴링으로 미룬다(focus watcher와 같은 `GetForegroundWindow`+`GetWindowThreadProcessId` 방식 재사용). mstsc가 포커스를 가진 동안은 host가 어차피 텍스트 입력을 받지 않으므로 host의 CapsLock LED가 잠시 안 맞아도 기능적 영향은 없고, 포커스가 host로 돌아오는 즉시(최대 250ms 이내) 보정된다. 이 트레이드오프(remote 작업 중 LED 오차 허용 vs 즉시 보정하되 remote 오탐 재발 위험)는 사용자 확인 하에 현재 동작(지연 우선)으로 유지하기로 결정했다.
 
 로그 파일 경로를 `bin/kanata.cmd` 최상단에서 한 번만 계산해 `%LOGFILE%`로 고정하고, `start`로 띄우는 하위 워처 프로세스들이 이를 상속받아 `[CapsWatcher]`/`[FocusWatcher]` 태그로 직접 append하도록 바꿨다. 기존에는 kanata.exe의 출력만 로그 파일에 남고 워처들의 동작은 어디에도 기록되지 않았다.
 
+### 시작 시점 고아 워처 정리
+
+`kanata.exe`가 스크립트 끝까지 정상 종료되지 못하고 죽으면(강제 종료 등) 맨 아래 `taskkill` 정리 로직에 도달하지 못해 `start ""`로 띄운 워처들이 고아 프로세스로 남는다. PID 파일은 "가장 최근 PID" 하나만 기억하므로 여러 세대가 누적되면 일부가 계속 살아남을 수 있다(실제로 host에서 mstsc 포커스 전환마다 TCP 연결이 2개씩 거의 동시에 발생하는 것으로 재현·확인됨). PID 파일 대신 명령줄에 `Win32Focus`/`IsKeyLocked` 마커가 포함된 `powershell.exe` 프로세스를 전부 찾아 종료하는 방식으로 시작 시점 정리 로직을 바꿔서, 몇 세대가 쌓여있든 한 번에 정리되도록 했다.
+
+### TCP 응답 드레인
+
+kanata TCP 서버는 연결 즉시 initial LayerChange 이벤트를 클라이언트에 푸시한다. focus watcher가 이를 읽지 않고 바로 소켓을 닫으면 Windows가 정상 종료(FIN) 대신 강제 종료(RST)를 보내고, 서버 쪽에는 "client sent an invalid message... (os error 10053/10054)"로 기록된다. 명령 전송 후 서버 응답을 짧게 드레인한 뒤 닫도록 수정해서 해결했다.
+
 ## 위험 검토
 
-- **CapsLock 보정 워처의 한영전환 오탐 가능성**: CapsLock 워처는 `IsKeyLocked`가 true일 때 `SendKeys('{CAPSLOCK}')`로 합성 CapsLock 입력을 주입한다. CapsLock 탭은 VK_HANGUL(`arbitrary-code 21`, [bin/kanata.kbd:97](../bin/kanata.kbd))을 전송하도록 매핑되어 있어, kanata의 저수준 훅이 이 합성 입력도 가로챌 경우 "탭"으로 재해석되어 mstsc 포커스 상태에서 remote로 한영전환이 전달될 가능성이 있다. `mrls-auto`(release-key만 사용)는 이 위험에서 제외된다. 폴링 간격을 250ms로 단축하면서 이 경로의 발생 빈도도 늘어날 수 있어, 검증 절차(아래)로 실재 여부를 확인해야 한다.
+- **CapsLock 보정 워처의 한영전환 오탐 가능성 — 실제로 재현됨, 디바운스+포커스 지연으로 완화**: CapsLock 워처는 `IsKeyLocked`가 true일 때 `SendKeys('{CAPSLOCK}')`로 합성 CapsLock 입력을 주입한다. CapsLock 탭은 VK_HANGUL(`arbitrary-code 21`, [bin/kanata.kbd:97](../bin/kanata.kbd))을 전송하도록 매핑되어 있어, kanata의 저수준 훅이 이 합성 입력도 가로채 "탭"으로 재해석하고 mstsc 포커스 상태에서 remote로 한영전환이 실제로 전달되는 것을 확인했다(사용자가 remote에서 의도적으로 CapsLock을 눌렀는데 한영전환이 한 번 더 일어나는 증상으로 재현). 위 "디바운스 + 포커스 인지" 절로 완화했으나, 완전히 제거된 건 아니고 "host에 진짜 stuck 상태 + 그때 포커스가 host"인 경우에만 보정이 나가도록 범위를 좁힌 것이다. `mrls-auto`(release-key만 사용)는 press를 만들지 않으므로 이 위험에서 애초에 제외된다.
 - **remote→host 역방향 오염 가능성**: 검토 결과 위험 없음. host가 mstsc로 remote를 단방향 원격 제어하는 구조라 RDP 키보드 리다이렉션이 host→remote로만 흐르고, remote의 로컬 보정(CapsLock 워처, mrls, focus watcher)이 host로 역전파될 경로가 없다.
 - **TCP 서버 개방**: `127.0.0.1`에만 바인딩되어 외부 네트워크 노출은 없지만, 로컬의 다른 프로세스가 `ActOnFakeKey`/`ChangeLayer`를 임의로 트리거할 수 있게 된다는 점은 감안해야 한다.
 - **폴링 방식의 한계**: 포커스 전환 감지가 250ms 폴링 주기만큼 지연될 수 있다 — 기존 문제(수 분 지연)보다는 압도적으로 개선되지만 완전히 즉시는 아니다.
