@@ -6,14 +6,15 @@ set "FOCUSPIDFILE=%TEMP%\kanata_focus_watcher.pid"
 set "POLL_INTERVAL_MS=250"
 set "KANATA_TCP_PORT=7070"
 
-if exist "%CAPSPIDFILE%" (
-    for /f %%P in ('type "%CAPSPIDFILE%"') do taskkill /PID %%P /F >nul 2>&1
-    del "%CAPSPIDFILE%" >nul 2>&1
-)
-if exist "%FOCUSPIDFILE%" (
-    for /f %%P in ('type "%FOCUSPIDFILE%"') do taskkill /PID %%P /F >nul 2>&1
-    del "%FOCUSPIDFILE%" >nul 2>&1
-)
+rem PID file only remembers the latest watcher generation. If kanata.exe was
+rem ever killed abruptly across multiple prior runs, several older watcher
+rem generations can be orphaned with no PID recorded anywhere. Sweep by a
+rem command-line marker so every leftover generation gets cleaned up, not
+rem just the most recent one.
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'powershell.exe' -and ($_.CommandLine -like '*Win32Focus*' -or $_.CommandLine -like '*IsKeyLocked*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+
+if exist "%CAPSPIDFILE%" del "%CAPSPIDFILE%" >nul 2>&1
+if exist "%FOCUSPIDFILE%" del "%FOCUSPIDFILE%" >nul 2>&1
 
 set "LOGDIR=%SELF_DIR%\logs"
 if not exist "%LOGDIR%" mkdir "%LOGDIR%"
